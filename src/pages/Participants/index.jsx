@@ -153,6 +153,12 @@ export default function Participants() {
     }
   };
 
+  const handleShareWA = (participant) => {
+    const message = `Halo ${participant.name},\n\nTerima kasih telah terdaftar sebagai peserta ${activeEvent.name}.\nBerikut adalah Kode Akses QR Anda: *${participant.qrCode}*\n\nHarap tunjukkan kode ini saat tiba di lokasi acara untuk Check-in.\n\nSalam,\nPanitia`;
+    const encodedMessage = encodeURIComponent(message);
+    window.open(`https://wa.me/?text=${encodedMessage}`, '_blank');
+  };
+
   const handleExportExcel = () => {
     const exportData = filteredParticipants.map(p => ({
       'ID Peserta': p.id,

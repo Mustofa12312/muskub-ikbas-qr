@@ -1,12 +1,23 @@
-import { collection, doc, getDocs, getDoc, addDoc, updateDoc, deleteDoc, query, where, orderBy } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
+import { collection, doc, getDocs, addDoc, updateDoc, deleteDoc, query, where, orderBy } from 'firebase/firestore';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, storage } from './firebase';
 
 const PARTICIPANTS_COLLECTION = 'participants';
+const isMockMode = import.meta.env.VITE_FIREBASE_API_KEY === "YOUR_API_KEY" || !import.meta.env.VITE_FIREBASE_API_KEY;
+
+let mockParticipants = [
+  { id: 'p1', eventId: '1', name: 'Ahmad Dahlan', delegation: 'PC Pamekasan', position: 'Ketua', status: 'BELUM HADIR', qrCode: 'MUSKUB4-PST-p1' },
+  { id: 'p2', eventId: '1', name: 'Siti Aminah', delegation: 'PC Sampang', position: 'Anggota', status: 'BELUM HADIR', qrCode: 'MUSKUB4-PST-p2' },
+];
 
 export const participantService = {
-  // Ambil semua peserta untuk satu acara
   async getParticipantsByEvent(eventId) {
+    if (isMockMode) {
+      return mockParticipants
+        .filter(p => p.eventId === eventId)
+        .sort((a, b) => a.name.localeCompare(b.name));
+    }
+
     const q = query(
       collection(db, PARTICIPANTS_COLLECTION),
       where('eventId', '==', eventId),
@@ -16,11 +27,23 @@ export const participantService = {
     return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
   },
 
-  // Tambah peserta baru
   async createParticipant(participantData, photoFile) {
     let photoUrl = '';
     
-    // Upload foto jika ada
+    if (isMockMode) {
+      const id = Math.random().toString(36).substr(2, 9);
+      const newParticipant = {
+        ...participantData,
+        id,
+        photoUrl: '', // Mock doesn't support real storage upload easily without DataURL
+        status: 'BELUM HADIR',
+        qrCode: `MUSKUB4-PST-${id}`,
+        createdAt: new Date().toISOString()
+      };
+      mockParticipants.push(newParticipant);
+      return newParticipant;
+    }
+
     if (photoFile) {
       photoUrl = await this.uploadPhoto(participantData.eventId, photoFile);
     }
@@ -28,25 +51,28 @@ export const participantService = {
     const newParticipant = {
       ...participantData,
       photoUrl,
-      status: 'BELUM HADIR', // Default status
+      status: 'BELUM HADIR',
       createdAt: new Date().toISOString()
     };
 
     const docRef = await addDoc(collection(db, PARTICIPANTS_COLLECTION), newParticipant);
-    
-    // Update data dengan QR Code format (contoh: MUSKUB4-PST-[ID])
     const qrCode = `MUSKUB4-PST-${docRef.id}`;
     await updateDoc(docRef, { qrCode });
 
     return { id: docRef.id, ...newParticipant, qrCode };
   },
 
-  // Update peserta
   async updateParticipant(id, participantData, photoFile, oldPhotoUrl) {
-    let photoUrl = participantData.photoUrl || oldPhotoUrl;
+    if (isMockMode) {
+      const idx = mockParticipants.findIndex(p => p.id === id);
+      if (idx > -1) {
+        mockParticipants[idx] = { ...mockParticipants[idx], ...participantData };
+      }
+      return;
+    }
 
+    let photoUrl = participantData.photoUrl || oldPhotoUrl;
     if (photoFile) {
-      // Jika upload foto baru, bisa hapus foto lama (opsional) atau overwrite
       photoUrl = await this.uploadPhoto(participantData.eventId, photoFile);
     }
 
@@ -58,14 +84,18 @@ export const participantService = {
     });
   },
 
-  // Hapus peserta
   async deleteParticipant(id) {
+    if (isMockMode) {
+      mockParticipants = mockParticipants.filter(p => p.id !== id);
+      return;
+    }
+
     const docRef = doc(db, PARTICIPANTS_COLLECTION, id);
     await deleteDoc(docRef);
   },
 
-  // Upload foto ke Storage
   async uploadPhoto(eventId, file) {
+    if (isMockMode) return '';
     const fileExt = file.name.split('.').pop();
     const fileName = `participants/${eventId}/${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
     const storageRef = ref(storage, fileName);
@@ -74,3 +104,6 @@ export const participantService = {
     return await getDownloadURL(storageRef);
   }
 };
+
+// Export mockParticipants so attendanceService can access it in mock mode
+export { mockParticipants };

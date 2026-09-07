@@ -18,6 +18,16 @@ export default function Login() {
     e.preventDefault();
     setLoading(true);
     try {
+      const isMockMode = import.meta.env.VITE_FIREBASE_API_KEY === "YOUR_API_KEY" || !import.meta.env.VITE_FIREBASE_API_KEY;
+      
+      if (isMockMode) {
+        // Simulasi network delay
+        await new Promise(r => setTimeout(r, 1000));
+        toast.success('Login berhasil (Mock Mode)!');
+        navigate('/');
+        return;
+      }
+
       await signInWithEmailAndPassword(auth, email, password);
       toast.success('Login berhasil!');
       navigate('/');

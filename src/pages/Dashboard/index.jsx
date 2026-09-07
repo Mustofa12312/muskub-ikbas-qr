@@ -2,13 +2,15 @@ import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useEvent } from '../../context/EventContext';
 import { attendanceService } from '../../services/attendanceService';
-import { Users, UserCheck, UserX, Percent } from 'lucide-react';
+import { Users, UserCheck, UserX, Percent, Activity } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 export default function Dashboard() {
   const { activeEvent, loading: eventLoading } = useEvent();
   const [stats, setStats] = useState({ total: 0, present: 0, absent: 0, percentage: 0 });
   const [recentScans, setRecentScans] = useState([]);
+  const [chartData, setChartData] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -20,12 +22,28 @@ export default function Dashboard() {
   const loadDashboardData = async () => {
     setLoading(true);
     try {
-      const [statsData, recentData] = await Promise.all([
+      const [statsData, recentData, allParticipants] = await Promise.all([
         attendanceService.getAttendanceStats(activeEvent.id),
-        attendanceService.getRecentScans(activeEvent.id, 5)
+        attendanceService.getRecentScans(activeEvent.id, 5),
+        attendanceService.getRecentScans(activeEvent.id, 100) // Fetch more for chart
       ]);
       setStats(statsData);
       setRecentScans(recentData);
+
+      // Process chart data
+      const groupedByHour = {};
+      allParticipants.forEach(p => {
+        if(p.attendanceTime) {
+          const hour = p.attendanceTime.split(':')[0] + ':00';
+          groupedByHour[hour] = (groupedByHour[hour] || 0) + 1;
+        }
+      });
+      
+      const chartFormatted = Object.keys(groupedByHour).sort().map(hour => ({
+        time: hour,
+        peserta: groupedByHour[hour]
+      }));
+      setChartData(chartFormatted);
     } catch (error) {
       console.error("Failed to load dashboard data", error);
     } finally {
@@ -144,6 +162,44 @@ export default function Dashboard() {
             ) : (
               <div className="py-8 text-center text-slate-500 text-sm">
                 Belum ada data kehadiran untuk acara ini.
+              </div>
+            )}
+          </CardContent>
+        </Card>
+        <Card className="col-span-1">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Activity className="h-5 w-5 text-emerald-500" /> 
+              Tren Kedatangan
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {loading ? (
+              <Skeleton className="h-[300px] w-full" />
+            ) : chartData.length > 0 ? (
+              <div className="h-[300px] w-full mt-4">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="colorPeserta" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#10b981" stopOpacity={0.8}/>
+                        <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                    <XAxis dataKey="time" axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 12}} dy={10} />
+                    <YAxis axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 12}} />
+                    <Tooltip 
+                      contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                      labelStyle={{ color: '#64748b', marginBottom: '4px' }}
+                    />
+                    <Area type="monotone" dataKey="peserta" stroke="#10b981" strokeWidth={3} fillOpacity={1} fill="url(#colorPeserta)" />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            ) : (
+              <div className="py-20 text-center text-slate-500 text-sm h-[300px] flex items-center justify-center border-dashed border-2 border-slate-100 rounded-xl">
+                Data belum cukup untuk menampilkan grafik
               </div>
             )}
           </CardContent>

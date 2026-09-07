@@ -9,6 +9,8 @@ import { Button } from '@/components/ui/button';
 export default function Scanner() {
   const { activeEvent } = useEvent();
   const [scanMode, setScanMode] = useState('usb'); // 'usb' or 'camera'
+  const [scanAction, setScanAction] = useState('in'); // 'in' or 'out'
+  const [activeSession, setActiveSession] = useState(null);
   const [scanStatus, setScanStatus] = useState('idle'); // idle, success, already_attended, not_found, error
   const [scanResult, setScanResult] = useState(null);
   const [recentScans, setRecentScans] = useState([]);
@@ -19,6 +21,11 @@ export default function Scanner() {
   
   useEffect(() => {
     if (activeEvent) {
+      if (activeEvent.hasSessions && activeEvent.sessions?.length > 0) {
+        setActiveSession(activeEvent.sessions[0]);
+      } else {
+        setActiveSession(null);
+      }
       loadRecentScans();
     }
   }, [activeEvent]);
@@ -72,7 +79,7 @@ export default function Scanner() {
     if (scanStatus !== 'idle') return;
     
     try {
-      const result = await attendanceService.processAttendance(qrCode, activeEvent.id);
+      const result = await attendanceService.processAttendance(qrCode, activeEvent.id, scanAction, activeSession);
       
       if (result.success) {
         setScanStatus('success');
@@ -144,7 +151,38 @@ export default function Scanner() {
           scanStatus === 'not_found' || scanStatus === 'error' ? 'bg-red-50 border-red-200' :
           'bg-white'
         }`}>
-          {/* Scan Mode Toggle */}
+          {/* Scan Action & Session Select */}
+          <div className="absolute top-4 left-4 z-20 flex gap-2 items-center">
+            {activeEvent.hasSessions && activeEvent.sessions?.length > 0 && (
+              <select 
+                className="h-9 px-3 rounded-md border border-slate-200 bg-white text-sm"
+                value={activeSession}
+                onChange={(e) => setActiveSession(e.target.value)}
+              >
+                {activeEvent.sessions.map(s => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
+            )}
+
+            <Button 
+              size="sm" 
+              variant={scanAction === 'in' ? 'default' : 'outline'}
+              onClick={() => setScanAction('in')}
+              className={scanAction === 'in' ? 'bg-blue-600 hover:bg-blue-700' : ''}
+            >
+              Check-in
+            </Button>
+            <Button 
+              size="sm" 
+              variant={scanAction === 'out' ? 'default' : 'outline'}
+              onClick={() => setScanAction('out')}
+              className={scanAction === 'out' ? 'bg-amber-500 hover:bg-amber-600 text-white' : ''}
+            >
+              Check-out
+            </Button>
+          </div>
+
           <div className="absolute top-4 right-4 z-20 flex gap-2">
             <Button 
               size="sm" 
@@ -205,12 +243,12 @@ export default function Scanner() {
                 <div className="mx-auto w-20 h-20 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mb-6">
                   <CheckCircle size={40} />
                 </div>
-                <h2 className="text-2xl font-bold text-emerald-700 mb-6">✓ BERHASIL</h2>
+                <h2 className="text-2xl font-bold text-emerald-700 mb-6">✓ {scanAction === 'in' ? 'BERHASIL CHECK-IN' : 'BERHASIL CHECK-OUT'}</h2>
                 
                 <ParticipantCard participant={scanResult} />
                 
                 <div className="mt-6 text-emerald-700 font-bold text-xl">
-                  {scanResult.attendanceTime} WIB
+                  {scanAction === 'in' ? scanResult.attendanceTime : scanResult.checkoutTime} WIB
                 </div>
               </div>
             )}
@@ -221,12 +259,14 @@ export default function Scanner() {
                 <div className="mx-auto w-20 h-20 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mb-6">
                   <AlertTriangle size={40} />
                 </div>
-                <h2 className="text-2xl font-bold text-amber-700 mb-6">⚠ SUDAH ABSEN</h2>
+                <h2 className="text-2xl font-bold text-amber-700 mb-6">⚠ {scanAction === 'in' ? 'SUDAH CHECK-IN' : 'SUDAH CHECK-OUT'}</h2>
                 
                 <ParticipantCard participant={scanResult} />
                 
                 <div className="mt-6 text-amber-700">
-                  Waktu hadir sebelumnya: <span className="font-bold">{scanResult.attendanceTime} WIB</span>
+                  Waktu {scanAction === 'in' ? 'Check-in' : 'Check-out'} sebelumnya: <span className="font-bold">
+                    {scanAction === 'in' ? scanResult.attendanceTime : scanResult.checkoutTime} WIB
+                  </span>
                 </div>
               </div>
             )}

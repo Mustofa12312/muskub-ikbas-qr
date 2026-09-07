@@ -8,13 +8,14 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
-import { Plus, Edit, Trash2, Calendar, CheckCircle } from 'lucide-react';
+import { Plus, Edit, Trash2, Calendar, CheckCircle, Clock } from 'lucide-react';
 
 export default function Events() {
   const { events, activeEvent, changeActiveEvent, reloadEvents, loading } = useEvent();
   const [isOpen, setIsOpen] = useState(false);
-  const [formData, setFormData] = useState({ name: '', date: '', location: '', description: '' });
+  const [formData, setFormData] = useState({ name: '', date: '', location: '', description: '', hasSessions: false, sessions: 'Sesi Pagi, Sesi Siang' });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async (e) => {
@@ -22,10 +23,17 @@ export default function Events() {
     setIsSubmitting(true);
     
     try {
-      await eventService.createEvent(formData);
+      const dataToSubmit = { ...formData };
+      if (dataToSubmit.hasSessions) {
+        dataToSubmit.sessions = dataToSubmit.sessions.split(',').map(s => s.trim()).filter(Boolean);
+      } else {
+        dataToSubmit.sessions = [];
+      }
+
+      await eventService.createEvent(dataToSubmit);
       toast.success('Acara berhasil dibuat');
       setIsOpen(false);
-      setFormData({ name: '', date: '', location: '', description: '' });
+      setFormData({ name: '', date: '', location: '', description: '', hasSessions: false, sessions: 'Sesi Pagi, Sesi Siang' });
       reloadEvents();
     } catch (error) {
       toast.error('Gagal membuat acara: ' + error.message);
@@ -113,6 +121,32 @@ export default function Events() {
                   onChange={e => setFormData({...formData, description: e.target.value})} 
                 />
               </div>
+
+              <div className="flex flex-row items-center justify-between rounded-lg border p-4 shadow-sm bg-slate-50">
+                <div className="space-y-0.5">
+                  <Label className="text-base">Multi-Sesi Absensi</Label>
+                  <p className="text-sm text-slate-500">
+                    Aktifkan jika acara ini memiliki lebih dari 1 sesi
+                  </p>
+                </div>
+                <Switch 
+                  checked={formData.hasSessions} 
+                  onCheckedChange={(checked) => setFormData({...formData, hasSessions: checked})} 
+                />
+              </div>
+
+              {formData.hasSessions && (
+                <div className="space-y-2 animate-in fade-in zoom-in duration-300">
+                  <Label htmlFor="sessions">Daftar Sesi (Pisahkan dengan koma)</Label>
+                  <Input 
+                    id="sessions" 
+                    value={formData.sessions} 
+                    onChange={e => setFormData({...formData, sessions: e.target.value})} 
+                    placeholder="Sesi Pagi, Sesi Siang, Sesi Malam"
+                  />
+                </div>
+              )}
+
               <Button type="submit" className="w-full bg-emerald-600 hover:bg-emerald-700" disabled={isSubmitting}>
                 {isSubmitting ? 'Menyimpan...' : 'Simpan Acara'}
               </Button>
@@ -156,6 +190,12 @@ export default function Events() {
                           <Calendar className="h-4 w-4 text-slate-400" />
                           {event.name}
                         </div>
+                        {event.hasSessions && (
+                          <div className="flex items-center gap-1 text-xs text-blue-600 mt-1 ml-6">
+                            <Clock className="h-3 w-3" />
+                            {event.sessions?.length || 0} Sesi
+                          </div>
+                        )}
                       </TableCell>
                       <TableCell>{event.date}</TableCell>
                       <TableCell>{event.location}</TableCell>

@@ -6,7 +6,7 @@ const PARTICIPANTS_COLLECTION = 'participants';
 const isMockMode = import.meta.env.VITE_FIREBASE_API_KEY === "YOUR_API_KEY" || !import.meta.env.VITE_FIREBASE_API_KEY;
 
 export const attendanceService = {
-  async processAttendance(qrCode, eventId) {
+  async processAttendance(qrCode, eventId, action = 'in', sessionId = null) {
     if (!qrCode || !eventId) throw new Error('QR Code atau Event ID tidak valid');
 
     if (isMockMode) {
@@ -16,29 +16,82 @@ export const attendanceService = {
       }
 
       const participant = mockParticipants[idx];
-      if (participant.status === 'HADIR') {
-        return {
-          success: false,
-          status: 'ALREADY_ATTENDED',
-          message: 'Peserta sudah melakukan absensi',
-          participant: { ...participant }
-        };
-      }
-
       const now = new Date();
-      const updateData = {
-        status: 'HADIR',
-        attendanceDate: now.toISOString().split('T')[0],
-        attendanceTime: now.toTimeString().split(' ')[0],
-        attendanceTimestamp: now.getTime()
-      };
+      
+      // Multi-session logic
+      const targetSession = sessionId ? (participant.sessionData?.[sessionId] || {}) : participant;
+      
+      if (action === 'in') {
+        if (targetSession.status === 'HADIR') {
+          return {
+            success: false,
+            status: 'ALREADY_ATTENDED',
+            message: 'Peserta sudah melakukan Check-in',
+            participant: { ...participant }
+          };
+        }
 
-      mockParticipants[idx] = { ...participant, ...updateData };
+        const updateData = {
+          status: 'HADIR',
+          attendanceDate: now.toISOString().split('T')[0],
+          attendanceTime: now.toTimeString().split(' ')[0],
+          attendanceTimestamp: now.getTime()
+        };
+
+        if (sessionId) {
+          mockParticipants[idx] = { 
+            ...participant, 
+            sessionData: { 
+              ...(participant.sessionData || {}), 
+              [sessionId]: { ...targetSession, ...updateData } 
+            }
+          };
+        } else {
+          mockParticipants[idx] = { ...participant, ...updateData };
+        }
+
+      } else if (action === 'out') {
+        if (targetSession.status !== 'HADIR') {
+          return {
+            success: false,
+            status: 'ERROR',
+            message: 'Peserta belum Check-in, tidak bisa Check-out',
+            participant: { ...participant }
+          };
+        }
+        if (targetSession.checkoutTime) {
+          return {
+            success: false,
+            status: 'ALREADY_ATTENDED',
+            message: 'Peserta sudah melakukan Check-out sebelumnya',
+            participant: { ...participant }
+          };
+        }
+
+        const updateData = {
+          checkoutTime: now.toTimeString().split(' ')[0],
+          checkoutTimestamp: now.getTime()
+        };
+
+        if (sessionId) {
+          mockParticipants[idx] = { 
+            ...participant, 
+            sessionData: { 
+              ...(participant.sessionData || {}), 
+              [sessionId]: { ...targetSession, ...updateData } 
+            }
+          };
+        } else {
+          mockParticipants[idx] = { ...participant, ...updateData };
+        }
+      }
 
       return {
         success: true,
         status: 'SUCCESS',
-        participant: { ...mockParticipants[idx] }
+        participant: { ...mockParticipants[idx] },
+        action,
+        sessionId
       };
     }
 
@@ -59,30 +112,66 @@ export const attendanceService = {
         const participantDoc = snapshot.docs[0];
         const participantData = participantDoc.data();
         const docRef = doc(db, PARTICIPANTS_COLLECTION, participantDoc.id);
+        const targetSession = sessionId ? (participantData.sessionData?.[sessionId] || {}) : participantData;
+        let updateData = {};
 
-        if (participantData.status === 'HADIR') {
-          return {
-            success: false,
-            status: 'ALREADY_ATTENDED',
-            message: 'Peserta sudah melakukan absensi',
-            participant: { id: participantDoc.id, ...participantData }
+        if (action === 'in') {
+          if (targetSession.status === 'HADIR') {
+            return {
+              success: false,
+              status: 'ALREADY_ATTENDED',
+              message: 'Peserta sudah melakukan Check-in',
+              participant: { id: participantDoc.id, ...participantData }
+            };
+          }
+
+          updateData = {
+            status: 'HADIR',
+            attendanceDate: now.toISOString().split('T')[0],
+            attendanceTime: now.toTimeString().split(' ')[0],
+            attendanceTimestamp: now.getTime()
+          };
+        } else if (action === 'out') {
+          if (targetSession.status !== 'HADIR') {
+            return {
+              success: false,
+              status: 'ERROR',
+              message: 'Peserta belum Check-in, tidak bisa Check-out',
+              participant: { id: participantDoc.id, ...participantData }
+            };
+          }
+          if (targetSession.checkoutTime) {
+            return {
+              success: false,
+              status: 'ALREADY_ATTENDED',
+              message: 'Peserta sudah melakukan Check-out',
+              participant: { id: participantDoc.id, ...participantData }
+            };
+          }
+
+          updateData = {
+            checkoutTime: now.toTimeString().split(' ')[0],
+            checkoutTimestamp: now.getTime()
           };
         }
 
-        const now = new Date();
-        const updateData = {
-          status: 'HADIR',
-          attendanceDate: now.toISOString().split('T')[0],
-          attendanceTime: now.toTimeString().split(' ')[0],
-          attendanceTimestamp: now.getTime()
-        };
+        let finalUpdate = updateData;
+        if (sessionId) {
+          finalUpdate = {
+            [`sessionData.${sessionId}.status`]: updateData.status || targetSession.status,
+            [`sessionData.${sessionId}.attendanceTime`]: updateData.attendanceTime || targetSession.attendanceTime,
+            [`sessionData.${sessionId}.checkoutTime`]: updateData.checkoutTime || targetSession.checkoutTime
+          };
+        }
 
-        transaction.update(docRef, updateData);
+        transaction.update(docRef, finalUpdate);
 
         return {
           success: true,
           status: 'SUCCESS',
-          participant: { id: participantDoc.id, ...participantData, ...updateData }
+          participant: { id: participantDoc.id, ...participantData, ...updateData },
+          action,
+          sessionId
         };
       });
 

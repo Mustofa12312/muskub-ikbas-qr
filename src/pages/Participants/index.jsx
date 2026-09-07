@@ -15,8 +15,9 @@ import { QRCodeSVG } from 'qrcode.react';
 import { exportToExcel, importFromExcel } from '../../utils/excel';
 import { exportToPDF } from '../../utils/pdf';
 import { generateIDCards, generateBulkQRCodes } from '../../utils/idCard';
+import { generateCertificate } from '../../utils/certificate';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
-import { Printer } from 'lucide-react';
+import { Printer, Award } from 'lucide-react';
 
 export default function Participants() {
   const { activeEvent } = useEvent();
@@ -392,7 +393,21 @@ export default function Participants() {
                           <Badge variant="outline" className="text-slate-500">Belum</Badge>
                         )}
                       </TableCell>
-                      <TableCell className="text-right">
+                      <TableCell className="text-right flex items-center justify-end gap-2">
+                        {participant.status === 'HADIR' && (
+                          <Button 
+                            size="sm" 
+                            variant="outline" 
+                            className="text-amber-600 border-amber-200 hover:bg-amber-50" 
+                            onClick={() => {
+                              toast.info('Men-generate Sertifikat...');
+                              generateCertificate(participant, activeEvent.name);
+                            }}
+                            title="Cetak Sertifikat"
+                          >
+                            <Award className="h-4 w-4 mr-1" /> Sertifikat
+                          </Button>
+                        )}
                         <Button size="icon" variant="ghost" className="text-red-500 hover:text-red-700 hover:bg-red-50" onClick={() => handleDelete(participant.id)}>
                           <Trash2 className="h-4 w-4" />
                         </Button>

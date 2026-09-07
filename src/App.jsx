@@ -4,6 +4,10 @@ import MainLayout from './layouts/MainLayout';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 
+import Events from './pages/Events';
+import Participants from './pages/Participants';
+import Scanner from './pages/Scanner';
+
 function App() {
   return (
     <Router>
@@ -12,10 +16,9 @@ function App() {
         
         <Route element={<MainLayout />}>
           <Route path="/" element={<Dashboard />} />
-          {/* Placeholder untuk rute lain yang akan dibuat di fase berikutnya */}
-          <Route path="/events" element={<div className="p-4">Halaman Acara (Segera Hadir)</div>} />
-          <Route path="/participants" element={<div className="p-4">Halaman Peserta (Segera Hadir)</div>} />
-          <Route path="/scanner" element={<div className="p-4">Halaman Scanner (Segera Hadir)</div>} />
+          <Route path="/events" element={<Events />} />
+          <Route path="/participants" element={<Participants />} />
+          <Route path="/scanner" element={<Scanner />} />
         </Route>
         
         <Route path="*" element={<Navigate to="/" replace />} />

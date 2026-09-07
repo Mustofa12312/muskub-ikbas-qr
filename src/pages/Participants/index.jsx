@@ -153,6 +153,23 @@ export default function Participants() {
     }
   };
 
+  const handleDownloadTemplate = () => {
+    const templateData = [
+      {
+        'Nama': 'Ahmad Dahlan',
+        'Delegasi': 'PC Pamekasan',
+        'Jabatan': 'Ketua'
+      },
+      {
+        'Nama': 'Siti Aminah',
+        'Delegasi': 'PC Sampang',
+        'Jabatan': 'Anggota'
+      }
+    ];
+    exportToExcel(templateData, 'Template_Import_Peserta');
+    toast.success('Template Excel berhasil diunduh');
+  };
+
   const handleShareWA = (participant) => {
     const message = `Halo ${participant.name},\n\nTerima kasih telah terdaftar sebagai peserta ${activeEvent.name}.\nBerikut adalah Kode Akses QR Anda: *${participant.qrCode}*\n\nHarap tunjukkan kode ini saat tiba di lokasi acara untuk Check-in.\n\nSalam,\nPanitia`;
     const encodedMessage = encodeURIComponent(message);
@@ -231,6 +248,9 @@ export default function Participants() {
             onChange={handleImport} 
           />
           
+          <Button variant="outline" onClick={handleDownloadTemplate} disabled={loading}>
+            <Download className="mr-2 h-4 w-4" /> Template Import
+          </Button>
           <Button variant="outline" onClick={() => fileInputRef.current?.click()} disabled={loading}>
             <Upload className="mr-2 h-4 w-4" /> Import
           </Button>

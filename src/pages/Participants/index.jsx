@@ -12,6 +12,9 @@ import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { Plus, Trash2, Users, Search, Download, Upload, FileText, FileSpreadsheet } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
+import QRCode from 'qrcode';
+import JSZip from 'jszip';
+import { saveAs } from 'file-saver';
 import { exportToExcel, importFromExcel } from '../../utils/excel';
 import { exportToPDF } from '../../utils/pdf';
 import { generateIDCards, generateBulkQRCodes } from '../../utils/idCard';
@@ -28,7 +31,7 @@ export default function Participants() {
   // Dialog State
   const [isOpen, setIsOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [formData, setFormData] = useState({ name: '', delegation: '', position: '' });
+  const [formData, setFormData] = useState({ name: '', delegation: '', position: '', qrCode: '' });
   const [photoFile, setPhotoFile] = useState(null);
 
   const fileInputRef = useRef(null);
@@ -66,7 +69,7 @@ export default function Participants() {
       
       toast.success('Peserta berhasil ditambahkan');
       setIsOpen(false);
-      setFormData({ name: '', delegation: '', position: '' });
+      setFormData({ name: '', delegation: '', position: '', qrCode: '' });
       setPhotoFile(null);
       loadParticipants();
     } catch (error) {
@@ -129,11 +132,14 @@ export default function Participants() {
           continue;
         }
 
+        const customId = row.ID || row['ID (Opsional)'] || row.id || row.Id;
+
         try {
           await participantService.createParticipant({
             name: row.Nama,
             delegation: row.Delegasi,
             position: row.Jabatan,
+            qrCode: customId ? String(customId) : undefined,
             eventId: activeEvent.id
           }, null);
           successCount++;
@@ -156,11 +162,13 @@ export default function Participants() {
   const handleDownloadTemplate = () => {
     const templateData = [
       {
+        'ID (Opsional)': 'ID-001',
         'Nama': 'Ahmad Dahlan',
         'Delegasi': 'PC Pamekasan',
         'Jabatan': 'Ketua'
       },
       {
+        'ID (Opsional)': 'ID-002',
         'Nama': 'Siti Aminah',
         'Delegasi': 'PC Sampang',
         'Jabatan': 'Anggota'
@@ -174,6 +182,50 @@ export default function Participants() {
     const message = `Halo ${participant.name},\n\nTerima kasih telah terdaftar sebagai peserta ${activeEvent.name}.\nBerikut adalah Kode Akses QR Anda: *${participant.qrCode}*\n\nHarap tunjukkan kode ini saat tiba di lokasi acara untuk Check-in.\n\nSalam,\nPanitia`;
     const encodedMessage = encodeURIComponent(message);
     window.open(`https://wa.me/?text=${encodedMessage}`, '_blank');
+  };
+
+  const handleDownloadAllQRsOnly = async () => {
+    try {
+      toast.info('Sedang menyiapkan file ZIP QR Code...', { id: 'zip-toast' });
+      
+      const zip = new JSZip();
+      let hasData = false;
+      
+      for (const p of filteredParticipants) {
+        if (!p.qrCode) continue;
+        
+        // Generate QR code as Data URL
+        const dataUrl = await QRCode.toDataURL(p.qrCode, {
+          width: 500,
+          margin: 2,
+          color: {
+            dark: '#000000',
+            light: '#ffffff'
+          }
+        });
+        
+        // Strip the data:image/png;base64, part
+        const base64Data = dataUrl.replace(/^data:image\/png;base64,/, "");
+        
+        // Add to ZIP
+        const safeName = p.name.replace(/[^a-zA-Z0-9 ]/g, '').trim().replace(/ +/g, '_');
+        zip.file(`qr_${safeName}.png`, base64Data, { base64: true });
+        hasData = true;
+      }
+      
+      if (!hasData) {
+        toast.error('Tidak ada QR Code yang dapat diunduh', { id: 'zip-toast' });
+        return;
+      }
+      
+      const content = await zip.generateAsync({ type: 'blob' });
+      saveAs(content, `QR_Code_Only_${activeEvent.name.replace(/[^a-zA-Z0-9]/g, '_')}.zip`);
+      
+      toast.success('Berhasil mengunduh kumpulan QR Code', { id: 'zip-toast' });
+    } catch (error) {
+      console.error(error);
+      toast.error('Gagal mengunduh QR Code', { id: 'zip-toast' });
+    }
   };
 
   const handleExportExcel = () => {
@@ -270,6 +322,10 @@ export default function Participants() {
                 <Printer className="mr-2 h-4 w-4 text-slate-500" />
                 Cetak QR Massal (A4)
               </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleDownloadAllQRsOnly}>
+                <Download className="mr-2 h-4 w-4 text-purple-500" />
+                Download Semua QR (ZIP)
+              </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={handleExportExcel}>
                 <FileSpreadsheet className="mr-2 h-4 w-4 text-emerald-600" />
@@ -320,6 +376,15 @@ export default function Participants() {
                     onChange={e => setFormData({...formData, position: e.target.value})} 
                     placeholder="Ketua / Anggota"
                     required 
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="qrCode">ID / QR Code (Opsional)</Label>
+                  <Input 
+                    id="qrCode" 
+                    value={formData.qrCode || ''} 
+                    onChange={e => setFormData({...formData, qrCode: e.target.value})} 
+                    placeholder="Bisa gunakan NIK / ID khusus"
                   />
                 </div>
                 <div className="space-y-2">

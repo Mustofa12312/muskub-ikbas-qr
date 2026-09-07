@@ -33,12 +33,13 @@ export const participantService = {
     
     if (isMockMode) {
       const id = Math.random().toString(36).substr(2, 9);
+      const qrCode = participantData.qrCode || `MUSKUB4-PST-${id}`;
       const newParticipant = {
         ...participantData,
         id,
         photoUrl: '', // Mock doesn't support real storage upload easily without DataURL
         status: 'BELUM HADIR',
-        qrCode: `MUSKUB4-PST-${id}`,
+        qrCode,
         createdAt: new Date().toISOString()
       };
       mockParticipants.push(newParticipant);
@@ -54,12 +55,18 @@ export const participantService = {
       ...participantData,
       photoUrl,
       status: 'BELUM HADIR',
+      qrCode: participantData.qrCode || '', // Temporary, will update below if empty
       createdAt: new Date().toISOString()
     };
 
     const docRef = await addDoc(collection(db, PARTICIPANTS_COLLECTION), newParticipant);
-    const qrCode = `MUSKUB4-PST-${docRef.id}`;
-    await updateDoc(docRef, { qrCode });
+    
+    const qrCode = participantData.qrCode || `MUSKUB4-PST-${docRef.id}`;
+    if (!participantData.qrCode) {
+      await updateDoc(docRef, { qrCode });
+    }
+    
+    newParticipant.qrCode = qrCode;
 
     auditService.logAction('CREATE', 'Peserta', `Mendaftarkan peserta baru: ${participantData.name}`);
     return { id: docRef.id, ...newParticipant, qrCode };

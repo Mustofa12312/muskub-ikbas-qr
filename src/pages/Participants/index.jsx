@@ -17,7 +17,7 @@ import { exportToPDF } from '../../utils/pdf';
 import { generateIDCards, generateBulkQRCodes } from '../../utils/idCard';
 import { generateCertificate } from '../../utils/certificate';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
-import { Printer, Award } from 'lucide-react';
+import { Printer, Award, MessageCircle } from 'lucide-react';
 
 export default function Participants() {
   const { activeEvent } = useEvent();
@@ -394,6 +394,16 @@ export default function Participants() {
                         )}
                       </TableCell>
                       <TableCell className="text-right flex items-center justify-end gap-2">
+                        <Button 
+                          size="icon" 
+                          variant="ghost" 
+                          className="text-green-600 hover:text-green-700 hover:bg-green-50 h-8 w-8" 
+                          onClick={() => handleShareWA(participant)}
+                          title="Kirim Kode Akses via WhatsApp"
+                        >
+                          <MessageCircle className="h-4 w-4" />
+                        </Button>
+                        
                         {participant.status === 'HADIR' && (
                           <Button 
                             size="sm" 

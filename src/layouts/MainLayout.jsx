@@ -3,7 +3,7 @@ import { useAuth } from '../hooks/useAuth';
 import { EventProvider } from '../context/EventContext';
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
-import { LayoutDashboard, Users, Calendar, ScanLine } from 'lucide-react';
+import { LayoutDashboard, Users, Calendar, ScanLine, History } from 'lucide-react';
 
 export default function MainLayout() {
   const { currentUser, loading } = useAuth();
@@ -16,11 +16,11 @@ export default function MainLayout() {
   if (!currentUser) {
     return <Navigate to="/login" replace />;
   }
-
   const navItems = [
     { name: 'Dashboard', path: '/', icon: LayoutDashboard },
     { name: 'Acara', path: '/events', icon: Calendar },
     { name: 'Peserta', path: '/participants', icon: Users },
+    { name: 'Audit Log', path: '/audit-log', icon: History },
   ];
 
   return (

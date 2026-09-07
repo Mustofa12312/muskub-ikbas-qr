@@ -7,6 +7,7 @@ import Dashboard from './pages/Dashboard';
 import Events from './pages/Events';
 import Participants from './pages/Participants';
 import Scanner from './pages/Scanner';
+import AuditLog from './pages/AuditLog';
 
 function App() {
   return (
@@ -19,6 +20,7 @@ function App() {
           <Route path="/events" element={<Events />} />
           <Route path="/participants" element={<Participants />} />
           <Route path="/scanner" element={<Scanner />} />
+          <Route path="/audit-log" element={<AuditLog />} />
         </Route>
         
         <Route path="*" element={<Navigate to="/" replace />} />

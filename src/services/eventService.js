@@ -11,7 +11,7 @@ let mockEvents = [
 
 export const eventService = {
   async getAllEvents() {
-    if (isMockMode) return [...mockEvents].sort((a, b) => b.date.localeCompare(a.date));
+    if (isMockMode) return [...mockEvents].sort((a, b) => new Date(b.date) - new Date(a.date));
     
     const q = query(collection(db, EVENTS_COLLECTION), orderBy('date', 'desc'));
     const snapshot = await getDocs(q);
@@ -34,23 +34,21 @@ export const eventService = {
   },
 
   async createEvent(eventData) {
+    let newId;
     if (isMockMode) {
-      const newEvent = {
+      newId = 'EVT' + Date.now();
+      const newEvent = { ...eventData, id: newId, status: 'active', createdAt: new Date().toISOString() };
+      mockEvents.unshift(newEvent);
+    } else {
+      const docRef = await addDoc(collection(db, EVENTS_COLLECTION), {
         ...eventData,
-        id: Math.random().toString(36).substr(2, 9),
         status: eventData.status || 'active',
         createdAt: new Date().toISOString()
-      };
-      mockEvents.push(newEvent);
-      return newEvent.id;
+      });
+      newId = docRef.id;
     }
-
-    const docRef = await addDoc(collection(db, EVENTS_COLLECTION), {
-      ...eventData,
-      status: eventData.status || 'active',
-      createdAt: new Date().toISOString()
-    });
-    return docRef.id;
+    auditService.logAction('CREATE', 'Acara', `Menambahkan acara baru: ${eventData.name}`);
+    return newId;
   },
 
   async updateEvent(id, eventData) {
@@ -71,11 +69,20 @@ export const eventService = {
 
   async deleteEvent(id) {
     if (isMockMode) {
-      mockEvents = mockEvents.filter(e => e.id !== id);
+      const eventIndex = mockEvents.findIndex(e => e.id === id);
+      if (eventIndex !== -1) {
+        const eventName = mockEvents[eventIndex].name;
+        mockEvents.splice(eventIndex, 1);
+        auditService.logAction('DELETE', 'Acara', `Menghapus acara: ${eventName}`);
+      }
       return;
     }
 
-    const docRef = doc(db, EVENTS_COLLECTION, id);
-    await deleteDoc(docRef);
+    const docSnap = await getDoc(doc(db, EVENTS_COLLECTION, id));
+    if (docSnap.exists()) {
+      const eventName = docSnap.data().name;
+      await deleteDoc(doc(db, EVENTS_COLLECTION, id));
+      auditService.logAction('DELETE', 'Acara', `Menghapus acara: ${eventName}`);
+    }
   }
 };

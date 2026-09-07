@@ -1,6 +1,7 @@
 import { collection, doc, getDocs, addDoc, updateDoc, deleteDoc, query, where, orderBy } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, storage } from './firebase';
+import { auditService } from './auditService';
 
 const PARTICIPANTS_COLLECTION = 'participants';
 const isMockMode = import.meta.env.VITE_FIREBASE_API_KEY === "YOUR_API_KEY" || !import.meta.env.VITE_FIREBASE_API_KEY;
@@ -41,6 +42,7 @@ export const participantService = {
         createdAt: new Date().toISOString()
       };
       mockParticipants.push(newParticipant);
+      auditService.logAction('CREATE', 'Peserta', `Mendaftarkan peserta baru: ${participantData.name}`);
       return newParticipant;
     }
 
@@ -59,6 +61,7 @@ export const participantService = {
     const qrCode = `MUSKUB4-PST-${docRef.id}`;
     await updateDoc(docRef, { qrCode });
 
+    auditService.logAction('CREATE', 'Peserta', `Mendaftarkan peserta baru: ${participantData.name}`);
     return { id: docRef.id, ...newParticipant, qrCode };
   },
 
@@ -86,12 +89,29 @@ export const participantService = {
 
   async deleteParticipant(id) {
     if (isMockMode) {
-      mockParticipants = mockParticipants.filter(p => p.id !== id);
+      const idx = mockParticipants.findIndex(p => p.id === id);
+      if (idx !== -1) {
+        const pName = mockParticipants[idx].name;
+        mockParticipants.splice(idx, 1);
+        auditService.logAction('DELETE', 'Peserta', `Menghapus data peserta: ${pName}`);
+      }
       return;
     }
 
-    const docRef = doc(db, PARTICIPANTS_COLLECTION, id);
-    await deleteDoc(docRef);
+    const docSnap = await getDoc(doc(db, PARTICIPANTS_COLLECTION, id));
+    if (docSnap.exists()) {
+      const pData = docSnap.data();
+      if (pData.photoUrl) {
+        try {
+          const photoRef = ref(storage, pData.photoUrl);
+          await deleteObject(photoRef);
+        } catch (error) {
+          console.error("Error deleting photo:", error);
+        }
+      }
+      await deleteDoc(doc(db, PARTICIPANTS_COLLECTION, id));
+      auditService.logAction('DELETE', 'Peserta', `Menghapus data peserta: ${pData.name}`);
+    }
   },
 
   async uploadPhoto(eventId, file) {

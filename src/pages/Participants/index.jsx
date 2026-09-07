@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useEvent } from '../../context/EventContext';
 import { participantService } from '../../services/participantService';
 import { attendanceService } from '../../services/attendanceService';
@@ -33,15 +33,7 @@ export default function Participants() {
 
   const fileInputRef = useRef(null);
 
-  useEffect(() => {
-    if (activeEvent) {
-      loadParticipants();
-    } else {
-      setLoading(false);
-    }
-  }, [activeEvent]);
-
-  const loadParticipants = async () => {
+  const loadParticipants = useCallback(async () => {
     setLoading(true);
     try {
       const data = await participantService.getParticipantsByEvent(activeEvent.id);
@@ -51,7 +43,15 @@ export default function Participants() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [activeEvent]);
+
+  useEffect(() => {
+    if (activeEvent) {
+      loadParticipants();
+    } else {
+      setLoading(false);
+    }
+  }, [activeEvent, loadParticipants]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -137,7 +137,7 @@ export default function Participants() {
             eventId: activeEvent.id
           }, null);
           successCount++;
-        } catch (err) {
+        } catch (_err) {
           errorCount++;
         }
       }
@@ -177,7 +177,7 @@ export default function Participants() {
       const stats = await attendanceService.getAttendanceStats(activeEvent.id);
       exportToPDF(filteredParticipants, activeEvent.name, stats);
       toast.success('Laporan diekspor ke PDF');
-    } catch (error) {
+    } catch (_error) {
       toast.error('Gagal mengekspor PDF');
     }
   };
@@ -187,7 +187,7 @@ export default function Participants() {
       toast.info('Sedang membuat ID Card...', { id: 'print-toast' });
       await generateIDCards(filteredParticipants, activeEvent.name);
       toast.success('ID Card berhasil dibuat', { id: 'print-toast' });
-    } catch (error) {
+    } catch (_error) {
       toast.error('Gagal membuat ID Card', { id: 'print-toast' });
     }
   };
@@ -197,7 +197,7 @@ export default function Participants() {
       toast.info('Sedang membuat QR Code Massal...', { id: 'print-toast' });
       await generateBulkQRCodes(filteredParticipants, activeEvent.name);
       toast.success('QR Code Massal berhasil dibuat', { id: 'print-toast' });
-    } catch (error) {
+    } catch (_error) {
       toast.error('Gagal membuat QR Code Massal', { id: 'print-toast' });
     }
   };

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useEvent } from '../../context/EventContext';
 import { attendanceService } from '../../services/attendanceService';
 import { Card, CardContent } from '@/components/ui/card';
@@ -19,16 +19,27 @@ export default function Scanner() {
   // Ref for the hidden input used by USB Scanner
   const inputRef = useRef(null);
   
+  const loadRecentScans = useCallback(async () => {
+    try {
+      const data = await attendanceService.getRecentScans(activeEvent.id, 4);
+      setRecentScans(data);
+    } catch (error) {
+      console.error("Failed to load recent scans", error);
+    }
+  }, [activeEvent]);
+
   useEffect(() => {
     if (activeEvent) {
       if (activeEvent.hasSessions && activeEvent.sessions?.length > 0) {
+        // eslint-disable-next-line react/set-state-in-effect
         setActiveSession(activeEvent.sessions[0]);
       } else {
+        // eslint-disable-next-line react/set-state-in-effect
         setActiveSession(null);
       }
       loadRecentScans();
     }
-  }, [activeEvent]);
+  }, [activeEvent, loadRecentScans]);
 
   // Keep focus on the hidden input for the USB scanner if in USB mode
   useEffect(() => {
@@ -59,16 +70,9 @@ export default function Scanner() {
     }
   }, [scanStatus, scanMode]);
 
-  const loadRecentScans = async () => {
-    try {
-      const data = await attendanceService.getRecentScans(activeEvent.id, 4);
-      setRecentScans(data);
-    } catch (error) {
-      console.error("Failed to load recent scans", error);
-    }
-  };
 
-  const playSound = (type) => {
+
+  const playSound = (_type) => {
     // Audio play omitted for brevity
   };
 
@@ -97,7 +101,7 @@ export default function Scanner() {
           playSound('error');
         }
       }
-    } catch (error) {
+    } catch (_error) {
       setScanStatus('error');
       setScanResult({ message: 'Terjadi kesalahan sistem' });
       playSound('error');
@@ -112,7 +116,7 @@ export default function Scanner() {
     }
   };
 
-  const handleCameraScan = (result, error) => {
+  const handleCameraScan = (result, _error) => {
     if (result) {
       handleScan(result?.text);
     }

@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useEvent } from '../../context/EventContext';
 import { participantService } from '../../services/participantService';
+import { attendanceService } from '../../services/attendanceService';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -9,8 +10,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { Plus, Trash2, Users, Search, Download, Upload } from 'lucide-react';
+import { Plus, Trash2, Users, Search, Download, Upload, FileText, FileSpreadsheet } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
+import { exportToExcel, importFromExcel } from '../../utils/excel';
+import { exportToPDF } from '../../utils/pdf';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
 export default function Participants() {
   const { activeEvent } = useEvent();
@@ -23,6 +27,8 @@ export default function Participants() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({ name: '', delegation: '', position: '' });
   const [photoFile, setPhotoFile] = useState(null);
+
+  const fileInputRef = useRef(null);
 
   useEffect(() => {
     if (activeEvent) {
@@ -89,7 +95,7 @@ export default function Participants() {
     img.onload = () => {
       canvas.width = img.width;
       canvas.height = img.height;
-      ctx.fillStyle = "white"; // Add white background
+      ctx.fillStyle = "white"; 
       ctx.fillRect(0, 0, canvas.width, canvas.height);
       ctx.drawImage(img, 0, 0);
       const pngFile = canvas.toDataURL("image/png");
@@ -100,6 +106,71 @@ export default function Participants() {
     };
     
     img.src = "data:image/svg+xml;base64," + btoa(unescape(encodeURIComponent(svgData)));
+  };
+
+  const handleImport = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    try {
+      setLoading(true);
+      const importedData = await importFromExcel(file);
+      
+      let successCount = 0;
+      let errorCount = 0;
+
+      // Import sequentially or in batches (sequential for simplicity here)
+      for (const row of importedData) {
+        if (!row.Nama || !row.Delegasi || !row.Jabatan) {
+          errorCount++;
+          continue;
+        }
+
+        try {
+          await participantService.createParticipant({
+            name: row.Nama,
+            delegation: row.Delegasi,
+            position: row.Jabatan,
+            eventId: activeEvent.id
+          }, null);
+          successCount++;
+        } catch (err) {
+          errorCount++;
+        }
+      }
+
+      toast.success(`Import selesai: ${successCount} berhasil, ${errorCount} gagal.`);
+      loadParticipants();
+    } catch (error) {
+      toast.error('Gagal mengimpor file: ' + error.message);
+    } finally {
+      setLoading(false);
+      // Reset file input
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const handleExportExcel = () => {
+    const exportData = filteredParticipants.map(p => ({
+      'ID Peserta': p.id,
+      'Nama': p.name,
+      'Delegasi': p.delegation,
+      'Jabatan': p.position,
+      'Status': p.status,
+      'Waktu Hadir': p.status === 'HADIR' ? p.attendanceTime : '-'
+    }));
+    exportToExcel(exportData, `Data_Peserta_${activeEvent.name}`);
+    toast.success('Data diekspor ke Excel');
+  };
+
+  const handleExportPDF = async () => {
+    try {
+      const stats = await attendanceService.getAttendanceStats(activeEvent.id);
+      exportToPDF(filteredParticipants, activeEvent.name, stats);
+      toast.success('Laporan diekspor ke PDF');
+    } catch (error) {
+      toast.error('Gagal mengekspor PDF');
+    }
   };
 
   // Filter participants
@@ -115,20 +186,43 @@ export default function Participants() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Manajemen Peserta</h1>
           <p className="text-slate-500">Kelola data peserta untuk {activeEvent.name}</p>
         </div>
         
-        <div className="flex gap-2">
-          {/* We will implement Import/Export in the next phase, but add buttons here */}
-          <Button variant="outline" className="hidden md:flex">
+        <div className="flex flex-wrap gap-2 w-full md:w-auto">
+          {/* Hidden file input for import */}
+          <input 
+            type="file" 
+            ref={fileInputRef} 
+            className="hidden" 
+            accept=".xlsx, .xls, .csv" 
+            onChange={handleImport} 
+          />
+          
+          <Button variant="outline" onClick={() => fileInputRef.current?.click()} disabled={loading}>
             <Upload className="mr-2 h-4 w-4" /> Import
           </Button>
-          <Button variant="outline" className="hidden md:flex">
-            <Download className="mr-2 h-4 w-4" /> Export
-          </Button>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" disabled={loading || participants.length === 0}>
+                <Download className="mr-2 h-4 w-4" /> Export
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={handleExportExcel}>
+                <FileSpreadsheet className="mr-2 h-4 w-4 text-emerald-600" />
+                Export ke Excel
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleExportPDF}>
+                <FileText className="mr-2 h-4 w-4 text-red-500" />
+                Export ke PDF
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           
           <Dialog open={isOpen} onOpenChange={setIsOpen}>
             <DialogTrigger asChild>
@@ -231,7 +325,7 @@ export default function Participants() {
                     <TableRow key={participant.id}>
                       <TableCell>
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-full bg-slate-100 overflow-hidden shrink-0">
+                          <div className="w-10 h-10 rounded-full bg-slate-100 overflow-hidden shrink-0 border">
                             {participant.photoUrl ? (
                               <img src={participant.photoUrl} alt="" className="w-full h-full object-cover" />
                             ) : (

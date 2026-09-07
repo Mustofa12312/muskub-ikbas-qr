@@ -14,7 +14,9 @@ import { Plus, Trash2, Users, Search, Download, Upload, FileText, FileSpreadshee
 import { QRCodeSVG } from 'qrcode.react';
 import { exportToExcel, importFromExcel } from '../../utils/excel';
 import { exportToPDF } from '../../utils/pdf';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { generateIDCards, generateBulkQRCodes } from '../../utils/idCard';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
+import { Printer } from 'lucide-react';
 
 export default function Participants() {
   const { activeEvent } = useEvent();
@@ -173,6 +175,26 @@ export default function Participants() {
     }
   };
 
+  const handlePrintIDCards = async () => {
+    try {
+      toast.info('Sedang membuat ID Card...', { id: 'print-toast' });
+      await generateIDCards(filteredParticipants, activeEvent.name);
+      toast.success('ID Card berhasil dibuat', { id: 'print-toast' });
+    } catch (error) {
+      toast.error('Gagal membuat ID Card', { id: 'print-toast' });
+    }
+  };
+
+  const handlePrintBulkQR = async () => {
+    try {
+      toast.info('Sedang membuat QR Code Massal...', { id: 'print-toast' });
+      await generateBulkQRCodes(filteredParticipants, activeEvent.name);
+      toast.success('QR Code Massal berhasil dibuat', { id: 'print-toast' });
+    } catch (error) {
+      toast.error('Gagal membuat QR Code Massal', { id: 'print-toast' });
+    }
+  };
+
   // Filter participants
   const filteredParticipants = participants.filter(p => 
     p.name.toLowerCase().includes(search.toLowerCase()) || 
@@ -209,10 +231,19 @@ export default function Participants() {
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" disabled={loading || participants.length === 0}>
-                <Download className="mr-2 h-4 w-4" /> Export
+                <Printer className="mr-2 h-4 w-4" /> Cetak / Export
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={handlePrintIDCards}>
+                <Printer className="mr-2 h-4 w-4 text-blue-500" />
+                Cetak ID Card (B4)
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handlePrintBulkQR}>
+                <Printer className="mr-2 h-4 w-4 text-slate-500" />
+                Cetak QR Massal (A4)
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
               <DropdownMenuItem onClick={handleExportExcel}>
                 <FileSpreadsheet className="mr-2 h-4 w-4 text-emerald-600" />
                 Export ke Excel

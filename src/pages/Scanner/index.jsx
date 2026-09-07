@@ -2,10 +2,13 @@ import { useState, useEffect, useRef } from 'react';
 import { useEvent } from '../../context/EventContext';
 import { attendanceService } from '../../services/attendanceService';
 import { Card, CardContent } from '@/components/ui/card';
-import { Users, CheckCircle, AlertTriangle, XCircle, Search } from 'lucide-react';
+import { Users, CheckCircle, AlertTriangle, XCircle, Search, Camera, Keyboard } from 'lucide-react';
+import { QrReader } from 'react-qr-reader';
+import { Button } from '@/components/ui/button';
 
 export default function Scanner() {
   const { activeEvent } = useEvent();
+  const [scanMode, setScanMode] = useState('usb'); // 'usb' or 'camera'
   const [scanStatus, setScanStatus] = useState('idle'); // idle, success, already_attended, not_found, error
   const [scanResult, setScanResult] = useState(null);
   const [recentScans, setRecentScans] = useState([]);
@@ -20,22 +23,21 @@ export default function Scanner() {
     }
   }, [activeEvent]);
 
-  // Keep focus on the hidden input for the USB scanner
+  // Keep focus on the hidden input for the USB scanner if in USB mode
   useEffect(() => {
     const focusInput = () => {
-      if (inputRef.current) {
+      if (scanMode === 'usb' && inputRef.current) {
         inputRef.current.focus();
       }
     };
     
-    // Auto focus when component mounts and on any click
     focusInput();
     window.addEventListener('click', focusInput);
     
     return () => {
       window.removeEventListener('click', focusInput);
     };
-  }, []);
+  }, [scanMode]);
 
   // Handle auto-reset after scan
   useEffect(() => {
@@ -43,12 +45,12 @@ export default function Scanner() {
       const timer = setTimeout(() => {
         setScanStatus('idle');
         setScanResult(null);
-        if (inputRef.current) inputRef.current.focus();
-      }, 3000); // Reset after 3 seconds
+        if (scanMode === 'usb' && inputRef.current) inputRef.current.focus();
+      }, 3000);
       
       return () => clearTimeout(timer);
     }
-  }, [scanStatus]);
+  }, [scanStatus, scanMode]);
 
   const loadRecentScans = async () => {
     try {
@@ -60,13 +62,11 @@ export default function Scanner() {
   };
 
   const playSound = (type) => {
-    // In a real app, you would play actual audio files here
-    // const audio = new Audio(`/sounds/${type}.mp3`);
-    // audio.play().catch(e => console.log('Audio play failed', e));
+    // Audio play omitted for brevity
   };
 
   const handleScan = async (qrCode) => {
-    if (!activeEvent || !qrCode.trim()) return;
+    if (!activeEvent || !qrCode || !qrCode.trim()) return;
     
     // Prevent processing if already processing
     if (scanStatus !== 'idle') return;
@@ -78,7 +78,7 @@ export default function Scanner() {
         setScanStatus('success');
         setScanResult(result.participant);
         playSound('success');
-        loadRecentScans(); // Refresh recent scans
+        loadRecentScans();
       } else {
         if (result.status === 'ALREADY_ATTENDED') {
           setScanStatus('already_attended');
@@ -101,7 +101,13 @@ export default function Scanner() {
     e.preventDefault();
     if (inputValue) {
       handleScan(inputValue);
-      setInputValue(''); // Clear input for next scan
+      setInputValue('');
+    }
+  };
+
+  const handleCameraScan = (result, error) => {
+    if (result) {
+      handleScan(result?.text);
     }
   };
 
@@ -111,17 +117,19 @@ export default function Scanner() {
 
   return (
     <div className="h-full flex flex-col lg:flex-row gap-6 max-w-7xl mx-auto">
-      {/* Hidden input for USB barcode scanner (acts like a keyboard) */}
-      <form onSubmit={handleSubmit} className="absolute opacity-0 -z-10">
-        <input
-          ref={inputRef}
-          type="text"
-          value={inputValue}
-          onChange={(e) => setInputValue(e.target.value)}
-          autoFocus
-          autoComplete="off"
-        />
-      </form>
+      {/* Hidden input for USB barcode scanner */}
+      {scanMode === 'usb' && (
+        <form onSubmit={handleSubmit} className="absolute opacity-0 -z-10">
+          <input
+            ref={inputRef}
+            type="text"
+            value={inputValue}
+            onChange={(e) => setInputValue(e.target.value)}
+            autoFocus
+            autoComplete="off"
+          />
+        </form>
+      )}
 
       {/* Main Scanner Area */}
       <div className="flex-1 flex flex-col">
@@ -130,22 +138,64 @@ export default function Scanner() {
           <p className="text-slate-500 mt-1">ABSENSI PESERTA</p>
         </div>
 
-        <Card className={`flex-1 flex flex-col overflow-hidden transition-colors duration-300 ${
+        <Card className={`flex-1 flex flex-col overflow-hidden transition-colors duration-300 relative ${
           scanStatus === 'success' ? 'bg-emerald-50 border-emerald-200' :
           scanStatus === 'already_attended' ? 'bg-amber-50 border-amber-200' :
           scanStatus === 'not_found' || scanStatus === 'error' ? 'bg-red-50 border-red-200' :
           'bg-white'
         }`}>
-          <CardContent className="flex-1 flex flex-col items-center justify-center p-6 text-center">
+          {/* Scan Mode Toggle */}
+          <div className="absolute top-4 right-4 z-20 flex gap-2">
+            <Button 
+              size="sm" 
+              variant={scanMode === 'usb' ? 'default' : 'outline'}
+              onClick={() => setScanMode('usb')}
+              className={scanMode === 'usb' ? 'bg-emerald-600' : ''}
+            >
+              <Keyboard className="w-4 h-4 mr-2" /> USB Mode
+            </Button>
+            <Button 
+              size="sm" 
+              variant={scanMode === 'camera' ? 'default' : 'outline'}
+              onClick={() => setScanMode('camera')}
+              className={scanMode === 'camera' ? 'bg-emerald-600' : ''}
+            >
+              <Camera className="w-4 h-4 mr-2" /> Kamera HP
+            </Button>
+          </div>
+
+          <CardContent className="flex-1 flex flex-col items-center justify-center p-6 text-center mt-12">
             
             {/* IDLE STATE */}
             {scanStatus === 'idle' && (
-              <div className="animate-in fade-in zoom-in duration-300 flex flex-col items-center">
-                <div className="w-64 h-64 border-4 border-dashed border-slate-300 rounded-3xl flex items-center justify-center bg-slate-50 mb-8 relative">
-                  <ScanOverlay />
-                </div>
-                <h2 className="text-2xl font-bold text-slate-700">Silakan Arahkan QR Code</h2>
-                <p className="text-slate-500 mt-2">Scanner sedang aktif dan siap menerima data</p>
+              <div className="animate-in fade-in zoom-in duration-300 flex flex-col items-center w-full max-w-sm">
+                
+                {scanMode === 'usb' ? (
+                  <>
+                    <div className="w-64 h-64 border-4 border-dashed border-slate-300 rounded-3xl flex items-center justify-center bg-slate-50 mb-8 relative">
+                      <ScanOverlay />
+                    </div>
+                    <h2 className="text-2xl font-bold text-slate-700">Silakan Arahkan Scanner USB</h2>
+                    <p className="text-slate-500 mt-2">Scanner sedang aktif dan siap menerima data</p>
+                  </>
+                ) : (
+                  <>
+                    <div className="w-full aspect-square rounded-3xl overflow-hidden bg-black mb-8 relative shadow-lg">
+                      <QrReader
+                        onResult={handleCameraScan}
+                        constraints={{ facingMode: 'environment' }}
+                        containerStyle={{ width: '100%', height: '100%' }}
+                        videoStyle={{ objectFit: 'cover' }}
+                      />
+                      <div className="absolute inset-0 border-[16px] border-black/40 z-10 pointer-events-none">
+                        <ScanOverlay />
+                      </div>
+                    </div>
+                    <h2 className="text-2xl font-bold text-slate-700">Arahkan Kamera ke QR</h2>
+                    <p className="text-slate-500 mt-2">Posisikan QR code di tengah kotak</p>
+                  </>
+                )}
+
               </div>
             )}
 
@@ -241,8 +291,8 @@ export default function Scanner() {
         </Card>
         
         <div className="bg-white p-4 rounded-xl border border-slate-200 flex items-center gap-3 text-sm text-slate-600 shadow-sm">
-          <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
-          Scanner USB aktif
+          <div className={`w-2 h-2 rounded-full animate-pulse ${scanMode === 'usb' ? 'bg-emerald-500' : 'bg-blue-500'}`}></div>
+          {scanMode === 'usb' ? 'Scanner USB aktif' : 'Kamera HP aktif'}
         </div>
       </div>
     </div>
@@ -259,7 +309,7 @@ function ScanOverlay() {
       <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-emerald-500 rounded-br-xl translate-x-1 translate-y-1"></div>
       
       <div className="w-full h-0.5 bg-emerald-500/50 absolute top-1/2 -translate-y-1/2 animate-scan shadow-[0_0_8px_2px_rgba(16,185,129,0.5)]"></div>
-      <Search className="text-slate-300 w-16 h-16 opacity-50" />
+      <Search className="text-slate-300 w-16 h-16 opacity-50 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
     </>
   );
 }

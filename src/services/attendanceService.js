@@ -1,4 +1,4 @@
-import { collection, doc, getDocs, query, where, orderBy, limit, runTransaction } from 'firebase/firestore';
+import { collection, doc, getDocs, query, where, orderBy, limit, runTransaction, onSnapshot } from 'firebase/firestore';
 import { db } from './firebase';
 import { mockParticipants } from './participantService';
 
@@ -234,5 +234,75 @@ export const attendanceService = {
       absent: total - present,
       percentage: total === 0 ? 0 : Math.round((present / total) * 100)
     };
+  },
+  
+  subscribeToDashboardData(eventId, callback) {
+    if (isMockMode) {
+      // For mock mode, just return static data periodically or once
+      const getMockData = () => {
+        const eventParticipants = mockParticipants.filter(p => p.eventId === eventId);
+        const total = eventParticipants.length;
+        const present = eventParticipants.filter(p => p.status === 'HADIR').length;
+        
+        const stats = {
+          total,
+          present,
+          absent: total - present,
+          percentage: total === 0 ? 0 : Math.round((present / total) * 100)
+        };
+        
+        const recent = eventParticipants
+          .filter(p => p.status === 'HADIR')
+          .sort((a, b) => (b.attendanceTimestamp || 0) - (a.attendanceTimestamp || 0))
+          .slice(0, 5);
+          
+        const allPresent = eventParticipants.filter(p => p.status === 'HADIR');
+        
+        callback(stats, recent, allPresent);
+      };
+      
+      getMockData();
+      const interval = setInterval(getMockData, 5000);
+      return () => clearInterval(interval); // return unsubscribe function
+    }
+
+    const q = query(
+      collection(db, PARTICIPANTS_COLLECTION),
+      where('eventId', '==', eventId)
+    );
+
+    // This listener will fire whenever data changes
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const allParticipants = [];
+      let total = snapshot.size;
+      let present = 0;
+
+      snapshot.forEach(doc => {
+        const data = { id: doc.id, ...doc.data() };
+        allParticipants.push(data);
+        if (data.status === 'HADIR') present++;
+      });
+
+      const stats = {
+        total,
+        present,
+        absent: total - present,
+        percentage: total === 0 ? 0 : Math.round((present / total) * 100)
+      };
+
+      // Get recent 5
+      const recent = allParticipants
+        .filter(p => p.status === 'HADIR')
+        .sort((a, b) => (b.attendanceTimestamp || 0) - (a.attendanceTimestamp || 0))
+        .slice(0, 5);
+
+      const allPresent = allParticipants.filter(p => p.status === 'HADIR');
+
+      callback(stats, recent, allPresent);
+    }, (error) => {
+      console.error("Error subscribing to dashboard data: ", error);
+    });
+
+    return unsubscribe;
   }
 };

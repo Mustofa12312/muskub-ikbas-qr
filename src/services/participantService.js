@@ -1,7 +1,8 @@
-import { collection, doc, getDocs, addDoc, updateDoc, deleteDoc, query, where, orderBy } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { collection, doc, getDocs, getDoc, addDoc, updateDoc, deleteDoc, query, where, orderBy } from 'firebase/firestore';
+import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { db, storage } from './firebase';
 import { auditService } from './auditService';
+import { compressImage } from '../utils/imageUtils';
 
 const PARTICIPANTS_COLLECTION = 'participants';
 const isMockMode = import.meta.env.VITE_FIREBASE_API_KEY === "YOUR_API_KEY" || !import.meta.env.VITE_FIREBASE_API_KEY;
@@ -123,11 +124,15 @@ export const participantService = {
 
   async uploadPhoto(eventId, file) {
     if (isMockMode) return '';
-    const fileExt = file.name.split('.').pop();
+    
+    // Compress the image to WebP with max 800x800 resolution to save storage
+    const compressedFile = await compressImage(file);
+    
+    const fileExt = 'webp'; // Since compressImage outputs webp
     const fileName = `participants/${eventId}/${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
     const storageRef = ref(storage, fileName);
     
-    await uploadBytes(storageRef, file);
+    await uploadBytes(storageRef, compressedFile);
     return await getDownloadURL(storageRef);
   }
 };

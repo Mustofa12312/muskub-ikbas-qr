@@ -12,23 +12,25 @@ let mockEvents = [
 
 export const eventService = {
   async getAllEvents() {
-    if (isMockMode) return [...mockEvents].sort((a, b) => new Date(b.date) - new Date(a.date));
+    if (isMockMode) return [...mockEvents].filter(e => !e.isDeleted).sort((a, b) => new Date(b.date) - new Date(a.date));
     
     const q = query(collection(db, EVENTS_COLLECTION), orderBy('date', 'desc'));
     const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    return snapshot.docs
+      .map(doc => ({ id: doc.id, ...doc.data() }))
+      .filter(event => !event.isDeleted); // Client-side filter to support existing data without isDeleted field
   },
 
   async getEventById(id) {
     if (isMockMode) {
-      const evt = mockEvents.find(e => e.id === id);
+      const evt = mockEvents.find(e => e.id === id && !e.isDeleted);
       if (evt) return { ...evt };
       throw new Error('Acara tidak ditemukan');
     }
 
     const docRef = doc(db, EVENTS_COLLECTION, id);
     const docSnap = await getDoc(docRef);
-    if (docSnap.exists()) {
+    if (docSnap.exists() && !docSnap.data().isDeleted) {
       return { id: docSnap.id, ...docSnap.data() };
     }
     throw new Error('Acara tidak ditemukan');
@@ -38,12 +40,13 @@ export const eventService = {
     let newId;
     if (isMockMode) {
       newId = 'EVT' + Date.now();
-      const newEvent = { ...eventData, id: newId, status: 'active', createdAt: new Date().toISOString() };
+      const newEvent = { ...eventData, id: newId, status: 'active', isDeleted: false, createdAt: new Date().toISOString() };
       mockEvents.unshift(newEvent);
     } else {
       const docRef = await addDoc(collection(db, EVENTS_COLLECTION), {
         ...eventData,
         status: eventData.status || 'active',
+        isDeleted: false,
         createdAt: new Date().toISOString()
       });
       newId = docRef.id;
@@ -73,8 +76,9 @@ export const eventService = {
       const eventIndex = mockEvents.findIndex(e => e.id === id);
       if (eventIndex !== -1) {
         const eventName = mockEvents[eventIndex].name;
-        mockEvents.splice(eventIndex, 1);
-        auditService.logAction('DELETE', 'Acara', `Menghapus acara: ${eventName}`);
+        mockEvents[eventIndex].isDeleted = true;
+        mockEvents[eventIndex].deletedAt = new Date().toISOString();
+        auditService.logAction('DELETE', 'Acara', `Mengarsipkan acara: ${eventName}`);
       }
       return;
     }
@@ -82,8 +86,12 @@ export const eventService = {
     const docSnap = await getDoc(doc(db, EVENTS_COLLECTION, id));
     if (docSnap.exists()) {
       const eventName = docSnap.data().name;
-      await deleteDoc(doc(db, EVENTS_COLLECTION, id));
-      auditService.logAction('DELETE', 'Acara', `Menghapus acara: ${eventName}`);
+      await updateDoc(doc(db, EVENTS_COLLECTION, id), {
+        isDeleted: true,
+        status: 'ARCHIVED',
+        deletedAt: new Date().toISOString()
+      });
+      auditService.logAction('DELETE', 'Acara', `Mengarsipkan acara: ${eventName}`);
     }
   }
 };

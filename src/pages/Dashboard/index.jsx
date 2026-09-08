@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useEvent } from '../../context/EventContext';
 import { attendanceService } from '../../services/attendanceService';
 import { Users, UserCheck, UserX, Percent, Activity } from 'lucide-react';
@@ -12,6 +13,19 @@ export default function Dashboard() {
   const [recentScans, setRecentScans] = useState([]);
   const [chartData, setChartData] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [selectedSessionId, setSelectedSessionId] = useState('main');
+
+  // Initialize selected session when event changes
+  useEffect(() => {
+    if (activeEvent?.hasSessions && activeEvent.sessions?.length > 0) {
+      // Only set to first session if we are currently on 'main' or the current selection is invalid
+      if (selectedSessionId === 'main' || !activeEvent.sessions.find(s => s.id === selectedSessionId)) {
+        setSelectedSessionId(activeEvent.sessions[0].id);
+      }
+    } else {
+      setSelectedSessionId('main');
+    }
+  }, [activeEvent]);
 
   useEffect(() => {
     let unsubscribe = null;
@@ -39,14 +53,15 @@ export default function Dashboard() {
           }));
           setChartData(chartFormatted);
           setLoading(false);
-        }
+        },
+        selectedSessionId
       );
     }
 
     return () => {
       if (unsubscribe) unsubscribe();
     };
-  }, [activeEvent]);
+  }, [activeEvent, selectedSessionId]);
 
   if (eventLoading) {
     return <div className="p-8"><Skeleton className="h-8 w-64 mb-6" /><div className="grid grid-cols-1 md:grid-cols-4 gap-4"><Skeleton className="h-32" /><Skeleton className="h-32" /><Skeleton className="h-32" /><Skeleton className="h-32" /></div></div>;
@@ -68,6 +83,21 @@ export default function Dashboard() {
           <h1 className="text-2xl font-bold text-slate-900">Dashboard</h1>
           <p className="text-slate-500">{activeEvent.name}</p>
         </div>
+        
+        {activeEvent.hasSessions && activeEvent.sessions?.length > 0 && (
+          <Select value={selectedSessionId} onValueChange={setSelectedSessionId}>
+            <SelectTrigger className="w-[200px]">
+              <SelectValue placeholder="Pilih Sesi" />
+            </SelectTrigger>
+            <SelectContent>
+              {activeEvent.sessions.map((session) => (
+                <SelectItem key={session.id} value={session.id}>
+                  {session.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
       </div>
       
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">

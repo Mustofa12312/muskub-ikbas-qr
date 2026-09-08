@@ -113,6 +113,7 @@ export const attendanceService = {
         const participantData = participantDoc.data();
         const docRef = doc(db, PARTICIPANTS_COLLECTION, participantDoc.id);
         const targetSession = sessionId ? (participantData.sessionData?.[sessionId] || {}) : participantData;
+        const now = new Date(); // Fix: Define 'now' variable here
         let updateData = {};
 
         if (action === 'in') {

@@ -1,5 +1,6 @@
 import { collection, doc, getDocs, getDoc, addDoc, updateDoc, deleteDoc, query, orderBy } from 'firebase/firestore';
 import { db } from './firebase';
+import { auditService } from './auditService';
 
 const EVENTS_COLLECTION = 'events';
 const isMockMode = import.meta.env.VITE_FIREBASE_API_KEY === "YOUR_API_KEY" || !import.meta.env.VITE_FIREBASE_API_KEY;

@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { Plus, Trash2, Users, Search, Download, Upload, FileText, FileSpreadsheet } from 'lucide-react';
+import { Plus, Trash2, Users, Search, Download, Upload, FileText, FileSpreadsheet, Edit } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import QRCode from 'qrcode';
 import JSZip from 'jszip';
@@ -30,6 +30,7 @@ export default function Participants() {
   
   // Dialog State
   const [isOpen, setIsOpen] = useState(false);
+  const [editingId, setEditingId] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({ name: '', delegation: '', position: '', qrCode: '' });
   const [photoFile, setPhotoFile] = useState(null);
@@ -56,24 +57,51 @@ export default function Participants() {
     }
   }, [activeEvent, loadParticipants]);
 
+  const closeDialog = () => {
+    setIsOpen(false);
+    setEditingId(null);
+    setFormData({ name: '', delegation: '', position: '', qrCode: '' });
+    setPhotoFile(null);
+  };
+
+  const openEditDialog = (participant) => {
+    setEditingId(participant.id);
+    setFormData({
+      name: participant.name,
+      delegation: participant.delegation,
+      position: participant.position,
+      qrCode: participant.qrCode || ''
+    });
+    setIsOpen(true);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!activeEvent) return toast.error('Pilih acara terlebih dahulu');
     
     setIsSubmitting(true);
     try {
-      await participantService.createParticipant({
-        ...formData,
-        eventId: activeEvent.id
-      }, photoFile);
+      if (editingId) {
+        const participantToEdit = participants.find(p => p.id === editingId);
+        await participantService.updateParticipant(
+          editingId,
+          { ...formData, eventId: activeEvent.id },
+          photoFile,
+          participantToEdit?.photoUrl
+        );
+        toast.success('Data peserta berhasil diperbarui');
+      } else {
+        await participantService.createParticipant({
+          ...formData,
+          eventId: activeEvent.id
+        }, photoFile);
+        toast.success('Peserta berhasil ditambahkan');
+      }
       
-      toast.success('Peserta berhasil ditambahkan');
-      setIsOpen(false);
-      setFormData({ name: '', delegation: '', position: '', qrCode: '' });
-      setPhotoFile(null);
+      closeDialog();
       loadParticipants();
     } catch (error) {
-      toast.error('Gagal menambah peserta: ' + error.message);
+      toast.error(`Gagal ${editingId ? 'memperbarui' : 'menambah'} peserta: ` + error.message);
     } finally {
       setIsSubmitting(false);
     }
@@ -338,15 +366,15 @@ export default function Participants() {
             </DropdownMenuContent>
           </DropdownMenu>
           
-          <Dialog open={isOpen} onOpenChange={setIsOpen}>
+          <Dialog open={isOpen} onOpenChange={(open) => open ? setIsOpen(true) : closeDialog()}>
             <DialogTrigger asChild>
-              <Button className="bg-emerald-600 hover:bg-emerald-700">
+              <Button className="bg-emerald-600 hover:bg-emerald-700" onClick={() => { setEditingId(null); setFormData({ name: '', delegation: '', position: '', qrCode: '' }); }}>
                 <Plus className="mr-2 h-4 w-4" /> Tambah
               </Button>
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>Tambah Peserta Baru</DialogTitle>
+                <DialogTitle>{editingId ? 'Edit Peserta' : 'Tambah Peserta Baru'}</DialogTitle>
               </DialogHeader>
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="space-y-2">
@@ -485,6 +513,15 @@ export default function Participants() {
                         )}
                       </TableCell>
                       <TableCell className="text-right flex items-center justify-end gap-2">
+                        <Button 
+                          size="icon" 
+                          variant="ghost" 
+                          className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 h-8 w-8" 
+                          onClick={() => openEditDialog(participant)}
+                          title="Edit Peserta"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
                         <Button 
                           size="icon" 
                           variant="ghost" 

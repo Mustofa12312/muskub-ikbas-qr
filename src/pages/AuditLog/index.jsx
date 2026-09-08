@@ -9,8 +9,11 @@ export default function AuditLog() {
   const [logs, setLogs] = useState([]);
 
   useEffect(() => {
-    // In real app, this would be an async fetch
-    setLogs(auditService.getLogs());
+    const fetchLogs = async () => {
+      const data = await auditService.getLogs();
+      setLogs(data);
+    };
+    fetchLogs();
   }, []);
 
   const getActionColor = (action) => {

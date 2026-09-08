@@ -1,0 +1,29 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Only authenticated users can access the database
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    match /events/{eventId} {
+      allow read, write: if isAuthenticated();
+    }
+    
+    match /participants/{participantId} {
+      allow read, write: if isAuthenticated();
+    }
+    
+    match /auditLogs/{logId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      // Audit logs cannot be updated or deleted
+      allow update, delete: if false;
+    }
+    
+    match /{document=**} {
+      allow read, write: if false; // Deny anything else
+    }
+  }
+}

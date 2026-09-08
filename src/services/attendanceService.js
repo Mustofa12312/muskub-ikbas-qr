@@ -1,4 +1,4 @@
-import { collection, doc, getDocs, query, where, orderBy, limit, runTransaction, onSnapshot } from 'firebase/firestore';
+import { collection, doc, getDocs, query, where, orderBy, limit, runTransaction, onSnapshot, serverTimestamp } from 'firebase/firestore';
 import { db } from './firebase';
 import { mockParticipants } from './participantService';
 
@@ -96,24 +96,34 @@ export const attendanceService = {
     }
 
     try {
+      // 1. Query outside transaction to find docId
+      const q = query(
+        collection(db, PARTICIPANTS_COLLECTION),
+        where('qrCode', '==', qrCode),
+        where('eventId', '==', eventId)
+      );
+      const snapshot = await getDocs(q);
+      
+      if (snapshot.empty) {
+        return { success: false, status: 'NOT_FOUND', message: 'QR Code tidak dikenali' };
+      }
+
+      const participantDocRef = snapshot.docs[0];
+      const docRef = doc(db, PARTICIPANTS_COLLECTION, participantDocRef.id);
+      
+      const now = new Date(); // Still need local time for UI display strings
+      const localDateStr = now.toISOString().split('T')[0];
+      const localTimeStr = now.toTimeString().split(' ')[0];
+
+      // 2. Run transaction with the docRef
       const result = await runTransaction(db, async (transaction) => {
-        const q = query(
-          collection(db, PARTICIPANTS_COLLECTION),
-          where('qrCode', '==', qrCode),
-          where('eventId', '==', eventId)
-        );
-        
-        const snapshot = await getDocs(q);
-        
-        if (snapshot.empty) {
-          return { success: false, status: 'NOT_FOUND', message: 'QR Code tidak dikenali' };
+        const pDoc = await transaction.get(docRef);
+        if (!pDoc.exists()) {
+          throw new Error("Document does not exist!");
         }
 
-        const participantDoc = snapshot.docs[0];
-        const participantData = participantDoc.data();
-        const docRef = doc(db, PARTICIPANTS_COLLECTION, participantDoc.id);
+        const participantData = pDoc.data();
         const targetSession = sessionId ? (participantData.sessionData?.[sessionId] || {}) : participantData;
-        const now = new Date(); // Fix: Define 'now' variable here
         let updateData = {};
 
         if (action === 'in') {
@@ -122,15 +132,15 @@ export const attendanceService = {
               success: false,
               status: 'ALREADY_ATTENDED',
               message: 'Peserta sudah melakukan Check-in',
-              participant: { id: participantDoc.id, ...participantData }
+              participant: { id: pDoc.id, ...participantData }
             };
           }
 
           updateData = {
             status: 'HADIR',
-            attendanceDate: now.toISOString().split('T')[0],
-            attendanceTime: now.toTimeString().split(' ')[0],
-            attendanceTimestamp: now.getTime()
+            attendanceDate: localDateStr,
+            attendanceTime: localTimeStr,
+            attendanceTimestamp: serverTimestamp() // Use server time for accurate sorting
           };
         } else if (action === 'out') {
           if (targetSession.status !== 'HADIR') {
@@ -138,7 +148,7 @@ export const attendanceService = {
               success: false,
               status: 'ERROR',
               message: 'Peserta belum Check-in, tidak bisa Check-out',
-              participant: { id: participantDoc.id, ...participantData }
+              participant: { id: pDoc.id, ...participantData }
             };
           }
           if (targetSession.checkoutTime) {
@@ -146,13 +156,13 @@ export const attendanceService = {
               success: false,
               status: 'ALREADY_ATTENDED',
               message: 'Peserta sudah melakukan Check-out',
-              participant: { id: participantDoc.id, ...participantData }
+              participant: { id: pDoc.id, ...participantData }
             };
           }
 
           updateData = {
-            checkoutTime: now.toTimeString().split(' ')[0],
-            checkoutTimestamp: now.getTime()
+            checkoutTime: localTimeStr,
+            checkoutTimestamp: serverTimestamp()
           };
         }
 
@@ -161,16 +171,23 @@ export const attendanceService = {
           finalUpdate = {
             [`sessionData.${sessionId}.status`]: updateData.status || targetSession.status,
             [`sessionData.${sessionId}.attendanceTime`]: updateData.attendanceTime || targetSession.attendanceTime,
-            [`sessionData.${sessionId}.checkoutTime`]: updateData.checkoutTime || targetSession.checkoutTime
+            [`sessionData.${sessionId}.checkoutTime`]: updateData.checkoutTime || targetSession.checkoutTime,
+            [`sessionData.${sessionId}.attendanceTimestamp`]: updateData.attendanceTimestamp || targetSession.attendanceTimestamp,
+            [`sessionData.${sessionId}.checkoutTimestamp`]: updateData.checkoutTimestamp || targetSession.checkoutTimestamp
           };
         }
 
         transaction.update(docRef, finalUpdate);
 
+        // For the UI return object, replace serverTimestamp() with local time approximation
+        const returnedUpdateData = { ...updateData };
+        if (returnedUpdateData.attendanceTimestamp) returnedUpdateData.attendanceTimestamp = now.getTime();
+        if (returnedUpdateData.checkoutTimestamp) returnedUpdateData.checkoutTimestamp = now.getTime();
+
         return {
           success: true,
           status: 'SUCCESS',
-          participant: { id: participantDoc.id, ...participantData, ...updateData },
+          participant: { id: pDoc.id, ...participantData, ...returnedUpdateData },
           action,
           sessionId
         };

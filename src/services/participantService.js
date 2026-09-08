@@ -16,7 +16,7 @@ export const participantService = {
   async getParticipantsByEvent(eventId) {
     if (isMockMode) {
       return mockParticipants
-        .filter(p => p.eventId === eventId)
+        .filter(p => p.eventId === eventId && !p.isDeleted)
         .sort((a, b) => a.name.localeCompare(b.name));
     }
 
@@ -26,7 +26,9 @@ export const participantService = {
       orderBy('name', 'asc')
     );
     const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    return snapshot.docs
+      .map(doc => ({ id: doc.id, ...doc.data() }))
+      .filter(p => !p.isDeleted); // Client-side filter to support existing data
   },
 
   async createParticipant(participantData, photoFile) {
@@ -112,8 +114,9 @@ export const participantService = {
       const idx = mockParticipants.findIndex(p => p.id === id);
       if (idx !== -1) {
         const pName = mockParticipants[idx].name;
-        mockParticipants.splice(idx, 1);
-        auditService.logAction('DELETE', 'Peserta', `Menghapus data peserta: ${pName}`);
+        mockParticipants[idx].isDeleted = true;
+        mockParticipants[idx].deletedAt = new Date().toISOString();
+        auditService.logAction('DELETE', 'Peserta', `Mengarsipkan data peserta: ${pName}`);
       }
       return;
     }
@@ -121,16 +124,12 @@ export const participantService = {
     const docSnap = await getDoc(doc(db, PARTICIPANTS_COLLECTION, id));
     if (docSnap.exists()) {
       const pData = docSnap.data();
-      if (pData.photoUrl) {
-        try {
-          const photoRef = ref(storage, pData.photoUrl);
-          await deleteObject(photoRef);
-        } catch (error) {
-          console.error("Error deleting photo:", error);
-        }
-      }
-      await deleteDoc(doc(db, PARTICIPANTS_COLLECTION, id));
-      auditService.logAction('DELETE', 'Peserta', `Menghapus data peserta: ${pData.name}`);
+      // Note: We don't delete the photo in soft-delete
+      await updateDoc(doc(db, PARTICIPANTS_COLLECTION, id), {
+        isDeleted: true,
+        deletedAt: new Date().toISOString()
+      });
+      auditService.logAction('DELETE', 'Peserta', `Mengarsipkan data peserta: ${pData.name}`);
     }
   },
 

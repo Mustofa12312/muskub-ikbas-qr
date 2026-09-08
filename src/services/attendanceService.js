@@ -217,6 +217,98 @@ export const attendanceService = {
     }
   },
 
+  async overrideAttendanceStatus(eventId, participantId, newStatus, reason, sessionId = 'main') {
+    if (isMockMode) return; // Not fully supported in mock mode
+
+    try {
+      const now = new Date();
+      const localDateStr = now.toISOString().split('T')[0];
+      const localTimeStr = now.toTimeString().split(' ')[0];
+
+      await runTransaction(db, async (transaction) => {
+        const attendanceDocId = `${eventId}_${sessionId}_${participantId}`;
+        const attendanceRef = doc(db, ATTENDANCE_COLLECTION, attendanceDocId);
+        
+        let updateData = {
+          eventId,
+          sessionId,
+          participantId,
+          status: newStatus
+        };
+
+        if (newStatus === 'HADIR') {
+          updateData.attendanceDate = localDateStr;
+          updateData.attendanceTime = localTimeStr;
+          updateData.attendanceTimestamp = serverTimestamp();
+        } else {
+          // If overriding to BELUM HADIR, we can clear the times or just keep them but change status
+          updateData.attendanceDate = null;
+          updateData.attendanceTime = null;
+          updateData.attendanceTimestamp = null;
+        }
+
+        const aDoc = await transaction.get(attendanceRef);
+        if (aDoc.exists()) {
+          transaction.update(attendanceRef, updateData);
+        } else {
+          transaction.set(attendanceRef, updateData);
+        }
+
+        // Create an Audit Log for this manual override
+        const auditLogRef = doc(collection(db, 'auditLogs'));
+        transaction.set(auditLogRef, {
+          action: 'MANUAL_OVERRIDE',
+          module: 'ATTENDANCE',
+          eventId,
+          participantId,
+          details: `Diubah menjadi ${newStatus}. Alasan: ${reason}`,
+          timestamp: serverTimestamp()
+        });
+      });
+    } catch (error) {
+      console.error("Error overriding attendance: ", error);
+      throw new Error('Gagal melakukan koreksi absensi');
+    }
+  },
+
+  async getAttendanceLogs(eventId, sessionId = null) {
+    if (isMockMode) return []; // Mock doesn't store robust logs
+
+    const conditions = [where('eventId', '==', eventId)];
+    if (sessionId) {
+      conditions.push(where('sessionId', '==', sessionId));
+    }
+
+    const q = query(
+      collection(db, ATTENDANCE_LOGS_COLLECTION),
+      ...conditions,
+      orderBy('timestamp', 'desc'),
+      limit(200) // Limit to last 200 logs for performance
+    );
+
+    const snapshot = await getDocs(q);
+    if (snapshot.empty) return [];
+
+    // Fetch participant data to display names
+    const pQ = query(collection(db, PARTICIPANTS_COLLECTION), where('eventId', '==', eventId));
+    const pSnapshot = await getDocs(pQ);
+    const pMap = {};
+    pSnapshot.forEach(doc => {
+      pMap[doc.id] = doc.data();
+    });
+
+    return snapshot.docs.map(doc => {
+      const data = doc.data();
+      const p = pMap[data.participantId];
+      return {
+        id: doc.id,
+        ...data,
+        participantName: p?.name || 'Unknown',
+        delegation: p?.delegation || 'Unknown'
+      };
+    });
+  },
+
   async getRecentScans(eventId, limitCount = 5, sessionId = null) {
     if (isMockMode) {
       return mockParticipants
@@ -297,7 +389,7 @@ export const attendanceService = {
         const stats = { total, present, absent: total - present, percentage: total === 0 ? 0 : Math.round((present / total) * 100) };
         const allPresent = eventParticipants.filter(p => p.status === 'HADIR');
         const recent = [...allPresent].sort((a, b) => (b.attendanceTimestamp || 0) - (a.attendanceTimestamp || 0)).slice(0, 5);
-        callback(stats, recent, allPresent);
+        callback(stats, recent, allPresent, eventParticipants);
       };
       
       getMockData();
@@ -358,7 +450,9 @@ export const attendanceService = {
           .sort((a, b) => b.sortTime - a.sortTime)
           .slice(0, 5);
 
-        callback(stats, recent, allPresent);
+        const allParticipants = Object.values(pMap);
+
+        callback(stats, recent, allPresent, allParticipants);
       }, (error) => {
         console.error("Error subscribing to dashboard data: ", error);
       });

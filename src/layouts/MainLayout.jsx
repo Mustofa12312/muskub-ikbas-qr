@@ -3,7 +3,7 @@ import { useAuth } from '../hooks/useAuth';
 import { EventProvider } from '../context/EventContext';
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
-import { LayoutDashboard, Users, Calendar, ScanLine, History, ClipboardCheck } from 'lucide-react';
+import { LayoutDashboard, Users, Calendar, ScanLine, History, ClipboardCheck, Settings } from 'lucide-react';
 
 export default function MainLayout() {
   const { currentUser, loading } = useAuth();
@@ -22,6 +22,8 @@ export default function MainLayout() {
     { name: 'Peserta', path: '/participants', icon: Users },
     { name: 'Kehadiran', path: '/attendance', icon: ClipboardCheck },
     { name: 'Audit Log', path: '/audit-log', icon: History },
+    { name: 'Riwayat Scan', path: '/scanner-logs', icon: ScanLine },
+    { name: 'Pengaturan', path: '/settings', icon: Settings },
   ];
 
   return (

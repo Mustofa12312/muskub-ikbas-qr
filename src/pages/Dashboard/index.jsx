@@ -12,6 +12,7 @@ export default function Dashboard() {
   const [stats, setStats] = useState({ total: 0, present: 0, absent: 0, percentage: 0 });
   const [recentScans, setRecentScans] = useState([]);
   const [chartData, setChartData] = useState([]);
+  const [delegationStats, setDelegationStats] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedSessionId, setSelectedSessionId] = useState('main');
 
@@ -34,7 +35,7 @@ export default function Dashboard() {
       setLoading(true);
       unsubscribe = attendanceService.subscribeToDashboardData(
         activeEvent.id, 
-        (statsData, recentData, allPresent) => {
+        (statsData, recentData, allPresent, allParticipants) => {
           setStats(statsData);
           setRecentScans(recentData);
 
@@ -52,6 +53,33 @@ export default function Dashboard() {
             peserta: groupedByHour[hour]
           }));
           setChartData(chartFormatted);
+          
+          // Process delegation stats
+          const delMap = {};
+          
+          // Get set of present IDs for easy lookup
+          const presentIds = new Set(allPresent.map(p => p.id));
+          
+          if (allParticipants) {
+            allParticipants.forEach(p => {
+              const delName = p.delegation || 'Tanpa Delegasi';
+              if (!delMap[delName]) {
+                delMap[delName] = { name: delName, total: 0, present: 0 };
+              }
+              delMap[delName].total += 1;
+              if (presentIds.has(p.id)) {
+                delMap[delName].present += 1;
+              }
+            });
+            
+            const delArray = Object.values(delMap).map(d => ({
+              ...d,
+              percentage: d.total > 0 ? Math.round((d.present / d.total) * 100) : 0
+            })).sort((a, b) => b.total - a.total); // Sort by total members descending
+            
+            setDelegationStats(delArray);
+          }
+
           setLoading(false);
         },
         selectedSessionId
@@ -227,6 +255,62 @@ export default function Dashboard() {
             ) : (
               <div className="py-20 text-center text-slate-500 text-sm h-[300px] flex items-center justify-center border-dashed border-2 border-slate-100 rounded-xl">
                 Data belum cukup untuk menampilkan grafik
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+      
+      {/* Delegation Stats Section */}
+      <div className="mt-8">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Users className="h-5 w-5 text-indigo-500" />
+              Statistik Kehadiran Delegasi
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {loading ? (
+              <Skeleton className="h-[200px] w-full" />
+            ) : delegationStats.length > 0 ? (
+              <div className="overflow-x-auto rounded-md border">
+                <table className="w-full text-sm text-left">
+                  <thead className="text-xs text-slate-700 bg-slate-50 border-b">
+                    <tr>
+                      <th className="px-4 py-3 font-medium">Nama Delegasi</th>
+                      <th className="px-4 py-3 font-medium text-right">Total Peserta</th>
+                      <th className="px-4 py-3 font-medium text-right">Hadir</th>
+                      <th className="px-4 py-3 font-medium text-right">Belum Hadir</th>
+                      <th className="px-4 py-3 font-medium">Persentase</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {delegationStats.map((del, idx) => (
+                      <tr key={idx} className="border-b last:border-0 hover:bg-slate-50">
+                        <td className="px-4 py-3 font-medium text-slate-900">{del.name}</td>
+                        <td className="px-4 py-3 text-right">{del.total}</td>
+                        <td className="px-4 py-3 text-right text-emerald-600 font-medium">{del.present}</td>
+                        <td className="px-4 py-3 text-right text-red-500">{del.total - del.present}</td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-2">
+                            <div className="w-full bg-slate-200 rounded-full h-2">
+                              <div 
+                                className={`h-2 rounded-full ${del.percentage >= 80 ? 'bg-emerald-500' : del.percentage >= 50 ? 'bg-amber-400' : 'bg-red-400'}`} 
+                                style={{ width: `${del.percentage}%` }}
+                              ></div>
+                            </div>
+                            <span className="text-xs font-medium text-slate-500 w-8">{del.percentage}%</span>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="py-12 text-center text-slate-500 text-sm border-dashed border-2 border-slate-100 rounded-xl">
+                Belum ada data delegasi.
               </div>
             )}
           </CardContent>

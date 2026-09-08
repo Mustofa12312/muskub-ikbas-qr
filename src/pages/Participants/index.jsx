@@ -30,6 +30,10 @@ export default function Participants() {
   const [filterDelegation, setFilterDelegation] = useState('all');
   const [filterPosition, setFilterPosition] = useState('all');
   
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 50;
+  
   // Dialog State
   const [isOpen, setIsOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
@@ -354,6 +358,18 @@ export default function Participants() {
   const uniqueDelegations = [...new Set(participants.map(p => p.delegation))].filter(Boolean).sort();
   const uniquePositions = [...new Set(participants.map(p => p.position))].filter(Boolean).sort();
 
+  // Pagination Logic
+  const totalPages = Math.ceil(filteredParticipants.length / itemsPerPage);
+  const paginatedParticipants = filteredParticipants.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
+  // Reset page when search or filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, filterDelegation, filterPosition]);
+
   if (!activeEvent) {
     return <div className="p-8 text-center text-slate-500">Pilih atau buat acara terlebih dahulu di menu Acara.</div>;
   }
@@ -591,12 +607,12 @@ export default function Participants() {
                   <TableRow>
                     <TableCell colSpan={5} className="text-center py-8 text-slate-500">Memuat data...</TableCell>
                   </TableRow>
-                ) : filteredParticipants.length === 0 ? (
+                ) : paginatedParticipants.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={5} className="text-center py-8 text-slate-500">Tidak ada peserta ditemukan</TableCell>
                   </TableRow>
                 ) : (
-                  filteredParticipants.map(participant => (
+                  paginatedParticipants.map(participant => (
                     <TableRow key={participant.id}>
                       <TableCell>
                         <div className="flex items-center gap-3">
@@ -690,6 +706,33 @@ export default function Participants() {
               </TableBody>
             </Table>
           </div>
+
+          {/* Pagination Controls */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between mt-4">
+              <div className="text-sm text-slate-500">
+                Halaman {currentPage} dari {totalPages}
+              </div>
+              <div className="flex gap-2">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                  disabled={currentPage === 1}
+                >
+                  Sebelumnya
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                  disabled={currentPage === totalPages}
+                >
+                  Selanjutnya
+                </Button>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

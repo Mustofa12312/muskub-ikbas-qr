@@ -48,6 +48,18 @@ export const participantService = {
       return newParticipant;
     }
 
+    if (participantData.qrCode) {
+      const q = query(
+        collection(db, PARTICIPANTS_COLLECTION),
+        where('eventId', '==', participantData.eventId),
+        where('qrCode', '==', participantData.qrCode)
+      );
+      const snapshot = await getDocs(q);
+      if (!snapshot.empty) {
+        throw new Error('QR Code sudah digunakan oleh peserta lain di acara ini.');
+      }
+    }
+
     if (photoFile) {
       photoUrl = await this.uploadPhoto(participantData.eventId, photoFile);
     }

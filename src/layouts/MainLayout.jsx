@@ -1,9 +1,10 @@
+import { useState } from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { EventProvider } from '../context/EventContext';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
-import { LayoutDashboard, Users, Calendar, ScanLine, History, ClipboardCheck, Settings, LogOut } from 'lucide-react';
+import { LayoutDashboard, Users, Calendar, ScanLine, History, ClipboardCheck, Settings, LogOut, ChevronLeft, ChevronRight } from 'lucide-react';
 import { signOut } from 'firebase/auth';
 import { auth } from '../services/firebase';
 
@@ -11,6 +12,7 @@ export default function MainLayout() {
   const { currentUser, loading } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   if (loading) {
     return <div className="h-screen w-screen flex items-center justify-center">Loading...</div>;
@@ -45,42 +47,103 @@ export default function MainLayout() {
     <EventProvider>
       <div className="min-h-screen bg-slate-50 flex flex-col md:flex-row">
         {/* Desktop Sidebar */}
-        <aside className="hidden md:flex w-64 flex-col bg-slate-900 text-white p-4 shrink-0">
-          <h1 className="text-xl font-bold mb-8">MUSKUB IV</h1>
-          <nav className="flex flex-col space-y-2">
+        <aside 
+          className={cn(
+            "hidden md:flex flex-col bg-[#0b1120] text-slate-300 border-r border-slate-800/60 p-4 shrink-0 transition-all duration-300 relative",
+            isSidebarCollapsed ? "w-20 items-center" : "w-56"
+          )}
+        >
+          <div className={cn("flex items-center mb-8 w-full", isSidebarCollapsed ? "justify-center" : "justify-between px-2")}>
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center text-emerald-500 shrink-0">
+                <ScanLine size={18} strokeWidth={2.5} />
+              </div>
+              {!isSidebarCollapsed && (
+                <h1 className="text-lg font-bold tracking-wide text-white whitespace-nowrap">
+                  MUSKUB <span className="text-emerald-500">IV</span>
+                </h1>
+              )}
+            </div>
+            
+            <button 
+              onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+              className={cn(
+                "text-slate-400 hover:text-white rounded-md hover:bg-slate-800 transition-colors flex items-center justify-center",
+                isSidebarCollapsed ? "absolute -right-3 top-6 bg-[#0b1120] border border-slate-800 w-6 h-6 rounded-full shadow-md z-10" : "p-1"
+              )}
+            >
+              {isSidebarCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={18} />}
+            </button>
+          </div>
+          
+          <nav className="flex flex-col space-y-1 w-full">
+            {!isSidebarCollapsed && <div className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-2 px-3 whitespace-nowrap">Menu Utama</div>}
             {filteredNavItems.map((item) => {
               const Icon = item.icon;
+              const isActive = location.pathname === item.path;
               return (
                 <Link
                   key={item.path}
                   to={item.path}
+                  title={isSidebarCollapsed ? item.name : ""}
                   className={cn(
-                    "flex items-center gap-3 px-4 py-3 rounded-md transition-colors",
-                    location.pathname === item.path ? "bg-slate-800 text-white font-medium" : "text-slate-300 hover:bg-slate-800 hover:text-white"
+                    "flex items-center rounded-lg transition-all duration-200 text-sm font-medium",
+                    isSidebarCollapsed ? "justify-center p-2.5 mx-auto" : "gap-3 px-3 py-2.5 w-full",
+                    isActive 
+                      ? "bg-emerald-500/15 text-emerald-400" 
+                      : "text-slate-400 hover:bg-slate-800/50 hover:text-slate-200"
                   )}
                 >
-                  <Icon size={20} />
-                  {item.name}
+                  <Icon size={18} strokeWidth={isActive ? 2.5 : 2} className={cn(isActive ? "text-emerald-400" : "text-slate-500", "shrink-0")} />
+                  {!isSidebarCollapsed && <span className="whitespace-nowrap">{item.name}</span>}
                 </Link>
               );
             })}
             
-            <Link 
-              to="/scanner" 
-              className="flex items-center gap-3 px-4 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-md mt-6 transition-colors shadow-sm"
-            >
-              <ScanLine size={20} />
-              <span className="font-medium">Mulai Scanner</span>
-            </Link>
+            <div className="pt-4 mt-2 w-full flex justify-center">
+              <Link 
+                to="/scanner" 
+                title={isSidebarCollapsed ? "Mulai Scanner" : ""}
+                className={cn(
+                  "flex items-center justify-center bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white rounded-lg transition-all shadow-lg shadow-emerald-900/20 text-sm font-medium",
+                  isSidebarCollapsed ? "p-2.5 w-10 h-10" : "gap-2 w-full py-2.5"
+                )}
+              >
+                <ScanLine size={18} className="shrink-0" />
+                {!isSidebarCollapsed && <span className="whitespace-nowrap">Mulai Scanner</span>}
+              </Link>
+            </div>
           </nav>
           
-          <div className="mt-auto pt-6 border-t border-slate-800">
+          <div className="mt-auto pt-4 border-t border-slate-800/60 w-full">
+            {!isSidebarCollapsed ? (
+              <div className="flex items-center gap-3 px-3 py-2 mb-2 w-full">
+                <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-emerald-500 shrink-0 border border-slate-700">
+                  <Users size={14} />
+                </div>
+                <div className="overflow-hidden">
+                  <p className="text-xs font-medium text-white truncate">{currentUser?.email}</p>
+                  <p className="text-[10px] text-slate-500 truncate capitalize">{userRole.replace('_', ' ')}</p>
+                </div>
+              </div>
+            ) : (
+              <div className="flex justify-center mb-2 w-full">
+                <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-emerald-500 shrink-0 border border-slate-700" title={currentUser?.email}>
+                  <Users size={14} />
+                </div>
+              </div>
+            )}
+            
             <button 
               onClick={handleLogout}
-              className="flex items-center gap-3 px-4 py-3 w-full text-slate-300 hover:bg-red-900/50 hover:text-red-400 rounded-md transition-colors"
+              title={isSidebarCollapsed ? "Keluar" : ""}
+              className={cn(
+                "flex items-center text-slate-400 hover:bg-red-500/10 hover:text-red-400 rounded-lg transition-colors text-sm font-medium",
+                isSidebarCollapsed ? "justify-center p-2.5 mx-auto" : "gap-3 px-3 py-2 w-full"
+              )}
             >
-              <LogOut size={20} />
-              <span className="font-medium">Keluar</span>
+              <LogOut size={18} className="shrink-0" />
+              {!isSidebarCollapsed && <span className="whitespace-nowrap">Keluar</span>}
             </button>
           </div>
         </aside>

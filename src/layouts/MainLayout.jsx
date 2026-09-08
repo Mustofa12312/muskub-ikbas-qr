@@ -17,14 +17,17 @@ export default function MainLayout() {
     return <Navigate to="/login" replace />;
   }
   const navItems = [
-    { name: 'Dashboard', path: '/', icon: LayoutDashboard },
-    { name: 'Acara', path: '/events', icon: Calendar },
-    { name: 'Peserta', path: '/participants', icon: Users },
-    { name: 'Kehadiran', path: '/attendance', icon: ClipboardCheck },
-    { name: 'Audit Log', path: '/audit-log', icon: History },
-    { name: 'Riwayat Scan', path: '/scanner-logs', icon: ScanLine },
-    { name: 'Pengaturan', path: '/settings', icon: Settings },
+    { name: 'Dashboard', path: '/', icon: LayoutDashboard, roles: ['SUPER_ADMIN', 'ADMIN', 'OPERATOR'] },
+    { name: 'Acara', path: '/events', icon: Calendar, roles: ['SUPER_ADMIN', 'ADMIN'] },
+    { name: 'Peserta', path: '/participants', icon: Users, roles: ['SUPER_ADMIN', 'ADMIN'] },
+    { name: 'Kehadiran', path: '/attendance', icon: ClipboardCheck, roles: ['SUPER_ADMIN', 'ADMIN', 'OPERATOR'] },
+    { name: 'Audit Log', path: '/audit-log', icon: History, roles: ['SUPER_ADMIN'] },
+    { name: 'Riwayat Scan', path: '/scanner-logs', icon: ScanLine, roles: ['SUPER_ADMIN', 'ADMIN'] },
+    { name: 'Pengaturan', path: '/settings', icon: Settings, roles: ['SUPER_ADMIN'] },
   ];
+
+  const userRole = currentUser?.role || 'OPERATOR';
+  const filteredNavItems = navItems.filter(item => item.roles.includes(userRole));
 
   return (
     <EventProvider>
@@ -33,7 +36,7 @@ export default function MainLayout() {
         <aside className="hidden md:flex w-64 flex-col bg-slate-900 text-white p-4 shrink-0">
           <h1 className="text-xl font-bold mb-8">MUSKUB IV</h1>
           <nav className="flex flex-col space-y-2">
-            {navItems.map((item) => {
+            {filteredNavItems.map((item) => {
               const Icon = item.icon;
               return (
                 <Link
@@ -71,10 +74,14 @@ export default function MainLayout() {
               <LayoutDashboard size={24} />
               <span className="text-[10px] font-medium">Home</span>
             </Link>
-            <Link to="/participants" className={cn("flex flex-col items-center gap-1 p-2", location.pathname === '/participants' ? "text-emerald-600" : "text-slate-500")}>
-              <Users size={24} />
-              <span className="text-[10px] font-medium">Peserta</span>
-            </Link>
+            
+            {userRole !== 'OPERATOR' && (
+              <Link to="/participants" className={cn("flex flex-col items-center gap-1 p-2", location.pathname === '/participants' ? "text-emerald-600" : "text-slate-500")}>
+                <Users size={24} />
+                <span className="text-[10px] font-medium">Peserta</span>
+              </Link>
+            )}
+            
             <Link to="/attendance" className={cn("flex flex-col items-center gap-1 p-2", location.pathname === '/attendance' ? "text-emerald-600" : "text-slate-500")}>
               <ClipboardCheck size={24} />
               <span className="text-[10px] font-medium">Kehadiran</span>

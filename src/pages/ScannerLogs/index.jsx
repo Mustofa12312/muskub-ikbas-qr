@@ -3,8 +3,11 @@ import { useEvent } from '../../context/EventContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Clock, User, QrCode, MonitorSmartphone, ArrowRightLeft } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Clock, User, QrCode, MonitorSmartphone, ArrowRightLeft, Download } from 'lucide-react';
 import { attendanceService } from '../../services/attendanceService';
+import { exportToExcel } from '../../utils/excel';
+import { toast } from 'sonner';
 
 export default function ScannerLogs() {
   const { activeEvent } = useEvent();
@@ -53,7 +56,25 @@ export default function ScannerLogs() {
   const getActionBadge = (action) => {
     if (action === 'in') return <Badge className="bg-emerald-100 text-emerald-800 border-emerald-200">Check-in</Badge>;
     if (action === 'out') return <Badge className="bg-amber-100 text-amber-800 border-amber-200">Check-out</Badge>;
+    if (action === 'MANUAL_OVERRIDE') return <Badge className="bg-blue-100 text-blue-800 border-blue-200">Koreksi Manual</Badge>;
     return <Badge variant="outline">{action}</Badge>;
+  };
+
+  const handleExport = () => {
+    if (logs.length === 0) return toast.error('Tidak ada data untuk diekspor');
+
+    const exportData = logs.map(log => ({
+      'ID Log': log.id,
+      'Waktu Scan': formatDate(log.timestamp),
+      'Nama Peserta': log.participantName,
+      'Delegasi': log.delegation,
+      'Aktivitas': log.action === 'in' ? 'Check-in' : log.action === 'out' ? 'Check-out' : log.action,
+      'Sesi': log.sessionId || '-',
+      'ID Scanner': log.scannerId || '-'
+    }));
+
+    exportToExcel(exportData, `Riwayat_Scan_${activeEvent.name}`);
+    toast.success('Log riwayat scan berhasil diekspor ke Excel');
   };
 
   if (!activeEvent) {
@@ -79,6 +100,10 @@ export default function ScannerLogs() {
             ))}
           </select>
         )}
+        
+        <Button variant="outline" onClick={handleExport} disabled={loading || logs.length === 0}>
+          <Download className="mr-2 h-4 w-4" /> Export Log
+        </Button>
       </div>
 
       <Card>

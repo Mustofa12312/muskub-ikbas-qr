@@ -3,6 +3,8 @@ import { db } from './firebase';
 import { mockParticipants } from './participantService';
 
 const PARTICIPANTS_COLLECTION = 'participants';
+const ATTENDANCE_COLLECTION = 'attendance';
+const ATTENDANCE_LOGS_COLLECTION = 'attendanceLogs';
 const isMockMode = import.meta.env.VITE_FIREBASE_API_KEY === "YOUR_API_KEY" || !import.meta.env.VITE_FIREBASE_API_KEY;
 
 export const attendanceService = {
@@ -115,19 +117,27 @@ export const attendanceService = {
       const localDateStr = now.toISOString().split('T')[0];
       const localTimeStr = now.toTimeString().split(' ')[0];
 
-      // 2. Run transaction with the docRef
       const result = await runTransaction(db, async (transaction) => {
+        // Read participant doc again to be safe
         const pDoc = await transaction.get(docRef);
         if (!pDoc.exists()) {
           throw new Error("Document does not exist!");
         }
 
         const participantData = pDoc.data();
-        const targetSession = sessionId ? (participantData.sessionData?.[sessionId] || {}) : participantData;
+        
+        // Use a composite ID for attendance document
+        const actualSessionId = sessionId || 'main';
+        const attendanceDocId = `${eventId}_${actualSessionId}_${participantDocRef.id}`;
+        const attendanceRef = doc(db, ATTENDANCE_COLLECTION, attendanceDocId);
+        
+        const aDoc = await transaction.get(attendanceRef);
+        const currentStatus = aDoc.exists() ? aDoc.data().status : 'BELUM HADIR';
+        
         let updateData = {};
 
         if (action === 'in') {
-          if (targetSession.status === 'HADIR') {
+          if (currentStatus === 'HADIR') {
             return {
               success: false,
               status: 'ALREADY_ATTENDED',
@@ -137,13 +147,16 @@ export const attendanceService = {
           }
 
           updateData = {
+            eventId,
+            sessionId: actualSessionId,
+            participantId: pDoc.id,
             status: 'HADIR',
             attendanceDate: localDateStr,
             attendanceTime: localTimeStr,
-            attendanceTimestamp: serverTimestamp() // Use server time for accurate sorting
+            attendanceTimestamp: serverTimestamp()
           };
         } else if (action === 'out') {
-          if (targetSession.status !== 'HADIR') {
+          if (currentStatus !== 'HADIR') {
             return {
               success: false,
               status: 'ERROR',
@@ -151,7 +164,7 @@ export const attendanceService = {
               participant: { id: pDoc.id, ...participantData }
             };
           }
-          if (targetSession.checkoutTime) {
+          if (aDoc.exists() && aDoc.data().checkoutTime) {
             return {
               success: false,
               status: 'ALREADY_ATTENDED',
@@ -166,20 +179,23 @@ export const attendanceService = {
           };
         }
 
-        let finalUpdate = updateData;
-        if (sessionId) {
-          finalUpdate = {
-            [`sessionData.${sessionId}.status`]: updateData.status || targetSession.status,
-            [`sessionData.${sessionId}.attendanceTime`]: updateData.attendanceTime || targetSession.attendanceTime,
-            [`sessionData.${sessionId}.checkoutTime`]: updateData.checkoutTime || targetSession.checkoutTime,
-            [`sessionData.${sessionId}.attendanceTimestamp`]: updateData.attendanceTimestamp || targetSession.attendanceTimestamp,
-            [`sessionData.${sessionId}.checkoutTimestamp`]: updateData.checkoutTimestamp || targetSession.checkoutTimestamp
-          };
+        if (aDoc.exists()) {
+          transaction.update(attendanceRef, updateData);
+        } else {
+          transaction.set(attendanceRef, updateData);
         }
 
-        transaction.update(docRef, finalUpdate);
+        // Write to attendanceLogs
+        const logRef = doc(collection(db, ATTENDANCE_LOGS_COLLECTION));
+        transaction.set(logRef, {
+          eventId,
+          sessionId: actualSessionId,
+          participantId: pDoc.id,
+          action,
+          timestamp: serverTimestamp()
+        });
 
-        // For the UI return object, replace serverTimestamp() with local time approximation
+        // For the UI return object, approximate serverTimestamp
         const returnedUpdateData = { ...updateData };
         if (returnedUpdateData.attendanceTimestamp) returnedUpdateData.attendanceTimestamp = now.getTime();
         if (returnedUpdateData.checkoutTimestamp) returnedUpdateData.checkoutTimestamp = now.getTime();
@@ -200,7 +216,7 @@ export const attendanceService = {
     }
   },
 
-  async getRecentScans(eventId, limitCount = 5) {
+  async getRecentScans(eventId, limitCount = 5, sessionId = null) {
     if (isMockMode) {
       return mockParticipants
         .filter(p => p.eventId === eventId && p.status === 'HADIR')
@@ -208,43 +224,60 @@ export const attendanceService = {
         .slice(0, limitCount);
     }
 
-    const q = query(
-      collection(db, PARTICIPANTS_COLLECTION),
+    const conditions = [
       where('eventId', '==', eventId),
-      where('status', '==', 'HADIR'),
+      where('status', '==', 'HADIR')
+    ];
+    if (sessionId) {
+      conditions.push(where('sessionId', '==', sessionId));
+    }
+
+    const q = query(
+      collection(db, ATTENDANCE_COLLECTION),
+      ...conditions,
       orderBy('attendanceTimestamp', 'desc'),
       limit(limitCount)
     );
     const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    
+    if (snapshot.empty) return [];
+
+    // Fetch participant data for each recent scan
+    const recentData = [];
+    for (const docSnap of snapshot.docs) {
+      const aData = docSnap.data();
+      const pDoc = await getDoc(doc(db, PARTICIPANTS_COLLECTION, aData.participantId));
+      if (pDoc.exists()) {
+        const timestamp = aData.attendanceTimestamp?.toDate ? aData.attendanceTimestamp.toDate().getTime() : 0;
+        recentData.push({ id: aData.participantId, ...pDoc.data(), ...aData, attendanceTimestamp: timestamp });
+      }
+    }
+    return recentData;
   },
   
-  async getAttendanceStats(eventId) {
+  async getAttendanceStats(eventId, sessionId = null) {
     if (isMockMode) {
       const eventParticipants = mockParticipants.filter(p => p.eventId === eventId);
       const total = eventParticipants.length;
       const present = eventParticipants.filter(p => p.status === 'HADIR').length;
-      
-      return {
-        total,
-        present,
-        absent: total - present,
-        percentage: total === 0 ? 0 : Math.round((present / total) * 100)
-      };
+      return { total, present, absent: total - present, percentage: total === 0 ? 0 : Math.round((present / total) * 100) };
     }
 
-    const q = query(
-      collection(db, PARTICIPANTS_COLLECTION),
-      where('eventId', '==', eventId)
-    );
-    const snapshot = await getDocs(q);
+    const pQ = query(collection(db, PARTICIPANTS_COLLECTION), where('eventId', '==', eventId));
+    const pSnapshot = await getDocs(pQ);
+    const total = pSnapshot.size;
     
-    let total = snapshot.size;
-    let present = 0;
-    
-    snapshot.forEach(doc => {
-      if (doc.data().status === 'HADIR') present++;
-    });
+    const conditions = [
+      where('eventId', '==', eventId),
+      where('status', '==', 'HADIR')
+    ];
+    if (sessionId) {
+      conditions.push(where('sessionId', '==', sessionId));
+    }
+
+    const aQ = query(collection(db, ATTENDANCE_COLLECTION), ...conditions);
+    const aSnapshot = await getDocs(aQ);
+    const present = aSnapshot.size;
     
     return {
       total,
@@ -254,73 +287,85 @@ export const attendanceService = {
     };
   },
   
-  subscribeToDashboardData(eventId, callback) {
+  subscribeToDashboardData(eventId, callback, sessionId = null) {
     if (isMockMode) {
-      // For mock mode, just return static data periodically or once
       const getMockData = () => {
         const eventParticipants = mockParticipants.filter(p => p.eventId === eventId);
         const total = eventParticipants.length;
         const present = eventParticipants.filter(p => p.status === 'HADIR').length;
-        
+        const stats = { total, present, absent: total - present, percentage: total === 0 ? 0 : Math.round((present / total) * 100) };
+        const allPresent = eventParticipants.filter(p => p.status === 'HADIR');
+        const recent = [...allPresent].sort((a, b) => (b.attendanceTimestamp || 0) - (a.attendanceTimestamp || 0)).slice(0, 5);
+        callback(stats, recent, allPresent);
+      };
+      
+      getMockData();
+      const interval = setInterval(getMockData, 5000);
+      return () => clearInterval(interval);
+    }
+
+    let unsubscribe = () => {};
+    let isUnsubscribed = false;
+
+    // First fetch all participants to have a local map for joining data
+    const pQ = query(collection(db, PARTICIPANTS_COLLECTION), where('eventId', '==', eventId));
+    getDocs(pQ).then(pSnapshot => {
+      if (isUnsubscribed) return;
+
+      const pMap = {};
+      pSnapshot.forEach(doc => {
+        pMap[doc.id] = { id: doc.id, ...doc.data() };
+      });
+      const total = pSnapshot.size;
+
+      const actualSessionId = sessionId || 'main';
+      const aQ = query(
+        collection(db, ATTENDANCE_COLLECTION),
+        where('eventId', '==', eventId),
+        where('sessionId', '==', actualSessionId)
+      );
+
+      unsubscribe = onSnapshot(aQ, (aSnapshot) => {
+        if (isUnsubscribed) return;
+
+        let present = 0;
+        const allPresent = [];
+
+        aSnapshot.forEach(doc => {
+          const aData = doc.data();
+          if (aData.status === 'HADIR') {
+            present++;
+            if (pMap[aData.participantId]) {
+              allPresent.push({
+                ...pMap[aData.participantId],
+                ...aData,
+                // Ensure timestamp is comparable for sorting
+                sortTime: aData.attendanceTimestamp?.toMillis ? aData.attendanceTimestamp.toMillis() : 0
+              });
+            }
+          }
+        });
+
         const stats = {
           total,
           present,
           absent: total - present,
           percentage: total === 0 ? 0 : Math.round((present / total) * 100)
         };
-        
-        const recent = eventParticipants
-          .filter(p => p.status === 'HADIR')
-          .sort((a, b) => (b.attendanceTimestamp || 0) - (a.attendanceTimestamp || 0))
+
+        const recent = [...allPresent]
+          .sort((a, b) => b.sortTime - a.sortTime)
           .slice(0, 5);
-          
-        const allPresent = eventParticipants.filter(p => p.status === 'HADIR');
-        
+
         callback(stats, recent, allPresent);
-      };
-      
-      getMockData();
-      const interval = setInterval(getMockData, 5000);
-      return () => clearInterval(interval); // return unsubscribe function
-    }
-
-    const q = query(
-      collection(db, PARTICIPANTS_COLLECTION),
-      where('eventId', '==', eventId)
-    );
-
-    // This listener will fire whenever data changes
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const allParticipants = [];
-      let total = snapshot.size;
-      let present = 0;
-
-      snapshot.forEach(doc => {
-        const data = { id: doc.id, ...doc.data() };
-        allParticipants.push(data);
-        if (data.status === 'HADIR') present++;
+      }, (error) => {
+        console.error("Error subscribing to dashboard data: ", error);
       });
+    }).catch(err => console.error("Error fetching participants for dashboard:", err));
 
-      const stats = {
-        total,
-        present,
-        absent: total - present,
-        percentage: total === 0 ? 0 : Math.round((present / total) * 100)
-      };
-
-      // Get recent 5
-      const recent = allParticipants
-        .filter(p => p.status === 'HADIR')
-        .sort((a, b) => (b.attendanceTimestamp || 0) - (a.attendanceTimestamp || 0))
-        .slice(0, 5);
-
-      const allPresent = allParticipants.filter(p => p.status === 'HADIR');
-
-      callback(stats, recent, allPresent);
-    }, (error) => {
-      console.error("Error subscribing to dashboard data: ", error);
-    });
-
-    return unsubscribe;
+    return () => {
+      isUnsubscribed = true;
+      unsubscribe();
+    };
   }
 };

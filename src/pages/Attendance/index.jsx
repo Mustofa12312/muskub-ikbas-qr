@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { Search, Users, Download, FileSpreadsheet, FileText } from 'lucide-react';
-import { exportToExcel } from '../../utils/excel';
+import { exportToExcel, exportToCSV } from '../../utils/excel';
 import { exportToPDF } from '../../utils/pdf';
 import { attendanceService } from '../../services/attendanceService';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -51,6 +51,19 @@ export default function Attendance() {
     }));
     exportToExcel(exportData, `Daftar_Hadir_${activeEvent.name}`);
     toast.success('Data diekspor ke Excel');
+  };
+
+  const handleExportCSV = () => {
+    const exportData = filteredParticipants.map(p => ({
+      'ID Peserta': p.id,
+      'Nama': p.name,
+      'Delegasi': p.delegation,
+      'Jabatan': p.position,
+      'Status': p.status,
+      'Waktu Hadir': p.status === 'HADIR' ? p.attendanceTime : '-'
+    }));
+    exportToCSV(exportData, `Daftar_Hadir_${activeEvent.name}`);
+    toast.success('Data diekspor ke CSV');
   };
 
   const handleExportPDF = async () => {
@@ -96,6 +109,10 @@ export default function Attendance() {
               <DropdownMenuItem onClick={handleExportExcel}>
                 <FileSpreadsheet className="mr-2 h-4 w-4 text-emerald-600" />
                 Export ke Excel
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleExportCSV}>
+                <FileText className="mr-2 h-4 w-4 text-blue-500" />
+                Export ke CSV
               </DropdownMenuItem>
               <DropdownMenuItem onClick={handleExportPDF}>
                 <FileText className="mr-2 h-4 w-4 text-red-500" />

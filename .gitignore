@@ -23,4 +23,8 @@ dist-ssr
 *.sln
 *.sw?
 .firebase/
-prd.md
+.env
+*.md
+*.pdf
+email.md
+.gitignore

@@ -72,8 +72,61 @@ export default function Scanner() {
 
 
 
-  const playSound = (_type) => {
-    // Audio play omitted for brevity
+  const playSound = (type) => {
+    try {
+      const AudioContext = window.AudioContext || window.webkitAudioContext;
+      if (!AudioContext) return;
+      
+      const ctx = new AudioContext();
+      const oscillator = ctx.createOscillator();
+      const gainNode = ctx.createGain();
+      
+      oscillator.connect(gainNode);
+      gainNode.connect(ctx.destination);
+      
+      if (type === 'success') {
+        // High pitch short beep
+        oscillator.type = 'sine';
+        oscillator.frequency.setValueAtTime(880, ctx.currentTime); // A5
+        gainNode.gain.setValueAtTime(0.1, ctx.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.1);
+        oscillator.start();
+        oscillator.stop(ctx.currentTime + 0.1);
+      } else if (type === 'warning') {
+        // Two medium pitch short beeps
+        oscillator.type = 'triangle';
+        oscillator.frequency.setValueAtTime(440, ctx.currentTime); // A4
+        gainNode.gain.setValueAtTime(0.1, ctx.currentTime);
+        
+        oscillator.start();
+        gainNode.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.1);
+        
+        const osc2 = ctx.createOscillator();
+        const gain2 = ctx.createGain();
+        osc2.connect(gain2);
+        gain2.connect(ctx.destination);
+        
+        osc2.type = 'triangle';
+        osc2.frequency.setValueAtTime(440, ctx.currentTime + 0.2);
+        gain2.gain.setValueAtTime(0, ctx.currentTime);
+        gain2.gain.setValueAtTime(0.1, ctx.currentTime + 0.2);
+        gain2.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
+        
+        osc2.start(ctx.currentTime + 0.2);
+        osc2.stop(ctx.currentTime + 0.3);
+        oscillator.stop(ctx.currentTime + 0.4);
+      } else if (type === 'error') {
+        // Low pitch long beep
+        oscillator.type = 'sawtooth';
+        oscillator.frequency.setValueAtTime(220, ctx.currentTime); // A3
+        gainNode.gain.setValueAtTime(0.1, ctx.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
+        oscillator.start();
+        oscillator.stop(ctx.currentTime + 0.5);
+      }
+    } catch (e) {
+      console.warn("Audio not supported or blocked", e);
+    }
   };
 
   const handleScan = async (qrCode) => {

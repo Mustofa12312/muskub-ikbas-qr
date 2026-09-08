@@ -19,7 +19,17 @@ export function EventProvider({ children }) {
       setEvents(data);
       // Auto-select the active or first event
       if (data.length > 0) {
-        const active = data.find(e => e.status === 'active') || data[0];
+        const savedEventId = localStorage.getItem('activeEventId');
+        let active = null;
+        
+        if (savedEventId) {
+          active = data.find(e => e.id === savedEventId);
+        }
+        
+        if (!active) {
+          active = data.find(e => e.status === 'active') || data[0];
+        }
+        
         setActiveEvent(active);
       }
     } catch (error) {
@@ -31,6 +41,11 @@ export function EventProvider({ children }) {
 
   const changeActiveEvent = (event) => {
     setActiveEvent(event);
+    if (event && event.id) {
+      localStorage.setItem('activeEventId', event.id);
+    } else {
+      localStorage.removeItem('activeEventId');
+    }
   };
 
   return (

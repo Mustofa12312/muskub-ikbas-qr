@@ -3,7 +3,7 @@ import { useAuth } from '../hooks/useAuth';
 import { EventProvider } from '../context/EventContext';
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
-import { LayoutDashboard, Users, Calendar, ScanLine, History } from 'lucide-react';
+import { LayoutDashboard, Users, Calendar, ScanLine, History, ClipboardCheck } from 'lucide-react';
 
 export default function MainLayout() {
   const { currentUser, loading } = useAuth();
@@ -20,6 +20,7 @@ export default function MainLayout() {
     { name: 'Dashboard', path: '/', icon: LayoutDashboard },
     { name: 'Acara', path: '/events', icon: Calendar },
     { name: 'Peserta', path: '/participants', icon: Users },
+    { name: 'Kehadiran', path: '/attendance', icon: ClipboardCheck },
     { name: 'Audit Log', path: '/audit-log', icon: History },
   ];
 
@@ -71,6 +72,10 @@ export default function MainLayout() {
             <Link to="/participants" className={cn("flex flex-col items-center gap-1 p-2", location.pathname === '/participants' ? "text-emerald-600" : "text-slate-500")}>
               <Users size={24} />
               <span className="text-[10px] font-medium">Peserta</span>
+            </Link>
+            <Link to="/attendance" className={cn("flex flex-col items-center gap-1 p-2", location.pathname === '/attendance' ? "text-emerald-600" : "text-slate-500")}>
+              <ClipboardCheck size={24} />
+              <span className="text-[10px] font-medium">Kehadiran</span>
             </Link>
             <Link to="/scanner" className="flex flex-col items-center gap-1 p-2 -mt-4 bg-emerald-600 text-white rounded-full shadow-lg border-4 border-slate-50">
               <div className="p-2">

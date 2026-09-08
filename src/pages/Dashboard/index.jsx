@@ -14,42 +14,39 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let unsubscribe = null;
+
     if (activeEvent) {
-      loadDashboardData();
-    }
-  }, [activeEvent]);
+      setLoading(true);
+      unsubscribe = attendanceService.subscribeToDashboardData(
+        activeEvent.id, 
+        (statsData, recentData, allPresent) => {
+          setStats(statsData);
+          setRecentScans(recentData);
 
-  const loadDashboardData = async () => {
-    setLoading(true);
-    try {
-      const [statsData, recentData, allParticipants] = await Promise.all([
-        attendanceService.getAttendanceStats(activeEvent.id),
-        attendanceService.getRecentScans(activeEvent.id, 5),
-        attendanceService.getRecentScans(activeEvent.id, 100) // Fetch more for chart
-      ]);
-      setStats(statsData);
-      setRecentScans(recentData);
-
-      // Process chart data
-      const groupedByHour = {};
-      allParticipants.forEach(p => {
-        if(p.attendanceTime) {
-          const hour = p.attendanceTime.split(':')[0] + ':00';
-          groupedByHour[hour] = (groupedByHour[hour] || 0) + 1;
+          // Process chart data
+          const groupedByHour = {};
+          allPresent.forEach(p => {
+            if(p.attendanceTime) {
+              const hour = p.attendanceTime.split(':')[0] + ':00';
+              groupedByHour[hour] = (groupedByHour[hour] || 0) + 1;
+            }
+          });
+          
+          const chartFormatted = Object.keys(groupedByHour).sort().map(hour => ({
+            time: hour,
+            peserta: groupedByHour[hour]
+          }));
+          setChartData(chartFormatted);
+          setLoading(false);
         }
-      });
-      
-      const chartFormatted = Object.keys(groupedByHour).sort().map(hour => ({
-        time: hour,
-        peserta: groupedByHour[hour]
-      }));
-      setChartData(chartFormatted);
-    } catch (error) {
-      console.error("Failed to load dashboard data", error);
-    } finally {
-      setLoading(false);
+      );
     }
-  };
+
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
+  }, [activeEvent]);
 
   if (eventLoading) {
     return <div className="p-8"><Skeleton className="h-8 w-64 mb-6" /><div className="grid grid-cols-1 md:grid-cols-4 gap-4"><Skeleton className="h-32" /><Skeleton className="h-32" /><Skeleton className="h-32" /><Skeleton className="h-32" /></div></div>;

@@ -15,18 +15,20 @@ import { QRCodeSVG } from 'qrcode.react';
 import QRCode from 'qrcode';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
-import { exportToExcel, importFromExcel } from '../../utils/excel';
+import { exportToExcel, importFromExcel, exportToCSV } from '../../utils/excel';
 import { exportToPDF } from '../../utils/pdf';
 import { generateIDCards, generateBulkQRCodes } from '../../utils/idCard';
 import { generateCertificate } from '../../utils/certificate';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
-import { Printer, Award, MessageCircle } from 'lucide-react';
+import { Printer, Award, MessageCircle, Mail } from 'lucide-react';
 
 export default function Participants() {
   const { activeEvent } = useEvent();
   const [participants, setParticipants] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [filterDelegation, setFilterDelegation] = useState('all');
+  const [filterPosition, setFilterPosition] = useState('all');
   
   // Dialog State
   const [isOpen, setIsOpen] = useState(false);
@@ -34,6 +36,11 @@ export default function Participants() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({ name: '', delegation: '', position: '', qrCode: '' });
   const [photoFile, setPhotoFile] = useState(null);
+
+  // Import Validation State
+  const [importPreviewData, setImportPreviewData] = useState(null);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
 
   const fileInputRef = useRef(null);
 
@@ -150,41 +157,56 @@ export default function Participants() {
       setLoading(true);
       const importedData = await importFromExcel(file);
       
-      let successCount = 0;
-      let errorCount = 0;
+      const validRows = [];
+      const errorRows = [];
 
-      // Import sequentially or in batches (sequential for simplicity here)
-      for (const row of importedData) {
+      importedData.forEach((row, index) => {
         if (!row.Nama || !row.Delegasi || !row.Jabatan) {
-          errorCount++;
-          continue;
+          errorRows.push({ rowNumber: index + 2, ...row });
+        } else {
+          validRows.push(row);
         }
+      });
 
-        const customId = row.ID || row['ID (Opsional)'] || row.id || row.Id;
-
-        try {
-          await participantService.createParticipant({
-            name: row.Nama,
-            delegation: row.Delegasi,
-            position: row.Jabatan,
-            qrCode: customId ? String(customId) : undefined,
-            eventId: activeEvent.id
-          }, null);
-          successCount++;
-        } catch (_err) {
-          errorCount++;
-        }
-      }
-
-      toast.success(`Import selesai: ${successCount} berhasil, ${errorCount} gagal.`);
-      loadParticipants();
+      setImportPreviewData({ validRows, errorRows });
+      setIsImportModalOpen(true);
     } catch (error) {
       toast.error('Gagal mengimpor file: ' + error.message);
     } finally {
       setLoading(false);
-      // Reset file input
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
+  };
+
+  const confirmImport = async () => {
+    if (!importPreviewData || importPreviewData.validRows.length === 0) return;
+    
+    setIsImporting(true);
+    let successCount = 0;
+    let errorCount = 0;
+
+    for (const row of importPreviewData.validRows) {
+      const customId = row.ID || row['ID (Opsional)'] || row.id || row.Id;
+
+      try {
+        await participantService.createParticipant({
+          name: row.Nama,
+          delegation: row.Delegasi,
+          position: row.Jabatan,
+          qrCode: customId ? String(customId) : undefined,
+          eventId: activeEvent.id
+        }, null);
+        successCount++;
+      } catch (_err) {
+        errorCount++;
+      }
+    }
+
+    toast.success(`Import selesai: ${successCount} berhasil, ${errorCount} gagal.`);
+    setIsImporting(false);
+    setIsImportModalOpen(false);
+    setImportPreviewData(null);
+    loadParticipants();
   };
 
   const handleDownloadTemplate = () => {
@@ -210,6 +232,12 @@ export default function Participants() {
     const message = `Halo ${participant.name},\n\nTerima kasih telah terdaftar sebagai peserta ${activeEvent.name}.\nBerikut adalah Kode Akses QR Anda: *${participant.qrCode}*\n\nHarap tunjukkan kode ini saat tiba di lokasi acara untuk Check-in.\n\nSalam,\nPanitia`;
     const encodedMessage = encodeURIComponent(message);
     window.open(`https://wa.me/?text=${encodedMessage}`, '_blank');
+  };
+
+  const handleShareEmail = (participant) => {
+    const subject = `Kode Akses QR - ${activeEvent.name}`;
+    const body = `Halo ${participant.name},\n\nTerima kasih telah terdaftar sebagai peserta ${activeEvent.name}.\nBerikut adalah Kode Akses QR/ID Anda: ${participant.qrCode}\n\nHarap tunjukkan kode ini saat tiba di lokasi acara untuk proses Check-in.\n\nSalam,\nPanitia`;
+    window.open(`mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`);
   };
 
   const handleDownloadAllQRsOnly = async () => {
@@ -269,6 +297,19 @@ export default function Participants() {
     toast.success('Data diekspor ke Excel');
   };
 
+  const handleExportCSV = () => {
+    const exportData = filteredParticipants.map(p => ({
+      'ID Peserta': p.id,
+      'Nama': p.name,
+      'Delegasi': p.delegation,
+      'Jabatan': p.position,
+      'Status': p.status,
+      'Waktu Hadir': p.status === 'HADIR' ? p.attendanceTime : '-'
+    }));
+    exportToCSV(exportData, `Data_Peserta_${activeEvent.name}`);
+    toast.success('Data diekspor ke CSV');
+  };
+
   const handleExportPDF = async () => {
     try {
       const stats = await attendanceService.getAttendanceStats(activeEvent.id);
@@ -300,11 +341,18 @@ export default function Participants() {
   };
 
   // Filter participants
-  const filteredParticipants = participants.filter(p => 
-    p.name.toLowerCase().includes(search.toLowerCase()) || 
-    p.delegation.toLowerCase().includes(search.toLowerCase()) ||
-    (p.qrCode && p.qrCode.toLowerCase().includes(search.toLowerCase()))
-  );
+  const filteredParticipants = participants.filter(p => {
+    const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase()) || 
+                          p.delegation.toLowerCase().includes(search.toLowerCase()) ||
+                          (p.qrCode && p.qrCode.toLowerCase().includes(search.toLowerCase()));
+    const matchesDelegation = filterDelegation === 'all' || p.delegation === filterDelegation;
+    const matchesPosition = filterPosition === 'all' || p.position === filterPosition;
+    
+    return matchesSearch && matchesDelegation && matchesPosition;
+  });
+
+  const uniqueDelegations = [...new Set(participants.map(p => p.delegation))].filter(Boolean).sort();
+  const uniquePositions = [...new Set(participants.map(p => p.position))].filter(Boolean).sort();
 
   if (!activeEvent) {
     return <div className="p-8 text-center text-slate-500">Pilih atau buat acara terlebih dahulu di menu Acara.</div>;
@@ -358,6 +406,10 @@ export default function Participants() {
               <DropdownMenuItem onClick={handleExportExcel}>
                 <FileSpreadsheet className="mr-2 h-4 w-4 text-emerald-600" />
                 Export ke Excel
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleExportCSV}>
+                <FileText className="mr-2 h-4 w-4 text-blue-500" />
+                Export ke CSV
               </DropdownMenuItem>
               <DropdownMenuItem onClick={handleExportPDF}>
                 <FileText className="mr-2 h-4 w-4 text-red-500" />
@@ -430,12 +482,63 @@ export default function Participants() {
               </form>
             </DialogContent>
           </Dialog>
+
+          {/* Import Validation Modal */}
+          <Dialog open={isImportModalOpen} onOpenChange={setIsImportModalOpen}>
+            <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Validasi Data Import</DialogTitle>
+              </DialogHeader>
+              {importPreviewData && (
+                <div className="space-y-4">
+                  <div className="flex gap-4 p-4 rounded-md bg-slate-50 border">
+                    <div className="flex-1 text-center">
+                      <div className="text-sm text-slate-500 mb-1">Total Data Ditemukan</div>
+                      <div className="text-2xl font-bold">{importPreviewData.validRows.length + importPreviewData.errorRows.length}</div>
+                    </div>
+                    <div className="flex-1 text-center border-l">
+                      <div className="text-sm text-slate-500 mb-1">Data Valid</div>
+                      <div className="text-2xl font-bold text-emerald-600">✓ {importPreviewData.validRows.length}</div>
+                    </div>
+                    <div className="flex-1 text-center border-l">
+                      <div className="text-sm text-slate-500 mb-1">Data Gagal</div>
+                      <div className="text-2xl font-bold text-red-500">⚠ {importPreviewData.errorRows.length}</div>
+                    </div>
+                  </div>
+
+                  {importPreviewData.errorRows.length > 0 && (
+                    <div className="rounded-md border border-red-200 bg-red-50 p-4">
+                      <h4 className="text-sm font-semibold text-red-800 mb-2">Data dengan masalah (akan dilewati):</h4>
+                      <div className="max-h-40 overflow-y-auto text-sm text-red-700 space-y-1">
+                        {importPreviewData.errorRows.map((err, i) => (
+                          <div key={i}>Baris {err.rowNumber}: Nama/Delegasi/Jabatan kosong ({err.Nama || '?'})</div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="flex justify-end gap-3 mt-4 pt-4 border-t">
+                    <Button variant="outline" onClick={() => setIsImportModalOpen(false)} disabled={isImporting}>
+                      Batalkan
+                    </Button>
+                    <Button 
+                      onClick={confirmImport} 
+                      className="bg-emerald-600 hover:bg-emerald-700" 
+                      disabled={importPreviewData.validRows.length === 0 || isImporting}
+                    >
+                      {isImporting ? 'Sedang Mengimpor...' : `Import ${importPreviewData.validRows.length} Data Valid`}
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
 
       <Card>
         <CardContent className="p-4">
-          <div className="flex justify-between items-center mb-4">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4">
             <div className="relative w-full max-w-sm">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-400" />
               <Input
@@ -446,9 +549,30 @@ export default function Participants() {
                 onChange={(e) => setSearch(e.target.value)}
               />
             </div>
-            <div className="text-sm text-slate-500">
-              Total: {filteredParticipants.length} peserta
+            
+            <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
+              <select 
+                className="h-9 px-3 rounded-md border border-slate-200 bg-white text-sm w-full sm:w-auto"
+                value={filterDelegation}
+                onChange={(e) => setFilterDelegation(e.target.value)}
+              >
+                <option value="all">Semua Delegasi</option>
+                {uniqueDelegations.map(del => <option key={del} value={del}>{del}</option>)}
+              </select>
+              
+              <select 
+                className="h-9 px-3 rounded-md border border-slate-200 bg-white text-sm w-full sm:w-auto"
+                value={filterPosition}
+                onChange={(e) => setFilterPosition(e.target.value)}
+              >
+                <option value="all">Semua Jabatan</option>
+                {uniquePositions.map(pos => <option key={pos} value={pos}>{pos}</option>)}
+              </select>
             </div>
+          </div>
+          
+          <div className="text-sm text-slate-500 mb-4">
+            Menampilkan {filteredParticipants.length} peserta
           </div>
 
           <div className="rounded-md border overflow-x-auto">
@@ -530,6 +654,16 @@ export default function Participants() {
                           title="Kirim Kode Akses via WhatsApp"
                         >
                           <MessageCircle className="h-4 w-4" />
+                        </Button>
+                        
+                        <Button 
+                          size="icon" 
+                          variant="ghost" 
+                          className="text-amber-600 hover:text-amber-700 hover:bg-amber-50 h-8 w-8" 
+                          onClick={() => handleShareEmail(participant)}
+                          title="Kirim Kode Akses via Email"
+                        >
+                          <Mail className="h-4 w-4" />
                         </Button>
                         
                         {participant.status === 'HADIR' && (

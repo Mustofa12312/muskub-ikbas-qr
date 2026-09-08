@@ -8,7 +8,7 @@ const ATTENDANCE_LOGS_COLLECTION = 'attendanceLogs';
 const isMockMode = import.meta.env.VITE_FIREBASE_API_KEY === "YOUR_API_KEY" || !import.meta.env.VITE_FIREBASE_API_KEY;
 
 export const attendanceService = {
-  async processAttendance(qrCode, eventId, action = 'in', sessionId = null) {
+  async processAttendance(qrCode, eventId, action = 'in', sessionId = null, scannerId = 'Unknown') {
     if (!qrCode || !eventId) throw new Error('QR Code atau Event ID tidak valid');
 
     if (isMockMode) {
@@ -192,6 +192,7 @@ export const attendanceService = {
           sessionId: actualSessionId,
           participantId: pDoc.id,
           action,
+          scannerId,
           timestamp: serverTimestamp()
         });
 

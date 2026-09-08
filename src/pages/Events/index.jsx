@@ -15,7 +15,16 @@ import { Plus, Edit, Trash2, Calendar, CheckCircle, Clock } from 'lucide-react';
 export default function Events() {
   const { events, activeEvent, changeActiveEvent, reloadEvents, loading } = useEvent();
   const [isOpen, setIsOpen] = useState(false);
-  const [formData, setFormData] = useState({ name: '', date: '', location: '', description: '', hasSessions: false, sessions: 'Sesi Pagi, Sesi Siang' });
+  const [formData, setFormData] = useState({ 
+    name: '', 
+    date: '', 
+    location: '', 
+    description: '', 
+    checkInStart: '', 
+    checkInEnd: '', 
+    hasSessions: false, 
+    sessions: 'Sesi Pagi, Sesi Siang' 
+  });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async (e) => {
@@ -33,7 +42,16 @@ export default function Events() {
       await eventService.createEvent(dataToSubmit);
       toast.success('Acara berhasil dibuat');
       setIsOpen(false);
-      setFormData({ name: '', date: '', location: '', description: '', hasSessions: false, sessions: 'Sesi Pagi, Sesi Siang' });
+      setFormData({ 
+        name: '', 
+        date: '', 
+        location: '', 
+        description: '', 
+        checkInStart: '', 
+        checkInEnd: '', 
+        hasSessions: false, 
+        sessions: 'Sesi Pagi, Sesi Siang' 
+      });
       reloadEvents();
     } catch (error) {
       toast.error('Gagal membuat acara: ' + error.message);
@@ -103,6 +121,26 @@ export default function Events() {
                   onChange={e => setFormData({...formData, date: e.target.value})} 
                   required 
                 />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="checkInStart">Jam Buka Absen</Label>
+                  <Input 
+                    id="checkInStart" 
+                    type="time" 
+                    value={formData.checkInStart} 
+                    onChange={e => setFormData({...formData, checkInStart: e.target.value})} 
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="checkInEnd">Jam Tutup Absen</Label>
+                  <Input 
+                    id="checkInEnd" 
+                    type="time" 
+                    value={formData.checkInEnd} 
+                    onChange={e => setFormData({...formData, checkInEnd: e.target.value})} 
+                  />
+                </div>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="location">Lokasi</Label>

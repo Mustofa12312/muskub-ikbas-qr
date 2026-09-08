@@ -9,6 +9,7 @@ import Participants from './pages/Participants';
 import Attendance from './pages/Attendance';
 import Scanner from './pages/Scanner';
 import AuditLog from './pages/AuditLog';
+import BackupSettings from './pages/Settings/Backup';
 
 function App() {
   return (
@@ -23,6 +24,7 @@ function App() {
           <Route path="/attendance" element={<Attendance />} />
           <Route path="/scanner" element={<Scanner />} />
           <Route path="/audit-log" element={<AuditLog />} />
+          <Route path="/settings" element={<BackupSettings />} />
         </Route>
         
         <Route path="*" element={<Navigate to="/" replace />} />

@@ -5,6 +5,9 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Users, CheckCircle, AlertTriangle, XCircle, Search, Camera, Keyboard } from 'lucide-react';
 import { QrReader } from 'react-qr-reader';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 
 export default function Scanner() {
   const { activeEvent } = useEvent();
@@ -15,6 +18,11 @@ export default function Scanner() {
   const [scanResult, setScanResult] = useState(null);
   const [recentScans, setRecentScans] = useState([]);
   const [inputValue, setInputValue] = useState('');
+  
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [scannerId, setScannerId] = useState(localStorage.getItem('scannerId') || '');
+  const [showScannerConfig, setShowScannerConfig] = useState(!localStorage.getItem('scannerId'));
+  const [tempScannerId, setTempScannerId] = useState(scannerId);
   
   // Ref for the hidden input used by USB Scanner
   const inputRef = useRef(null);
@@ -27,6 +35,17 @@ export default function Scanner() {
       console.error("Failed to load recent scans", error);
     }
   }, [activeEvent]);
+
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
 
   useEffect(() => {
     if (activeEvent) {
@@ -135,8 +154,28 @@ export default function Scanner() {
     // Prevent processing if already processing
     if (scanStatus !== 'idle') return;
     
+    // Validate time
+    if (activeEvent.checkInStart || activeEvent.checkInEnd) {
+      const now = new Date();
+      const currentTime = now.toTimeString().split(' ')[0].substring(0, 5); // HH:MM
+      
+      if (activeEvent.checkInStart && currentTime < activeEvent.checkInStart) {
+        setScanStatus('error');
+        setScanResult({ message: `Absensi belum dibuka. Dibuka jam ${activeEvent.checkInStart} WIB` });
+        playSound('error');
+        return;
+      }
+      
+      if (activeEvent.checkInEnd && currentTime > activeEvent.checkInEnd) {
+        setScanStatus('error');
+        setScanResult({ message: `Absensi sudah ditutup sejak jam ${activeEvent.checkInEnd} WIB` });
+        playSound('error');
+        return;
+      }
+    }
+    
     try {
-      const result = await attendanceService.processAttendance(qrCode, activeEvent.id, scanAction, activeSession);
+      const result = await attendanceService.processAttendance(qrCode, activeEvent.id, scanAction, activeSession, scannerId);
       
       if (result.success) {
         setScanStatus('success');
@@ -175,6 +214,14 @@ export default function Scanner() {
     }
   };
 
+  const handleSaveScannerId = () => {
+    if (tempScannerId.trim()) {
+      localStorage.setItem('scannerId', tempScannerId.trim());
+      setScannerId(tempScannerId.trim());
+      setShowScannerConfig(false);
+    }
+  };
+
   if (!activeEvent) {
     return <div className="p-8 text-center text-slate-500">Pilih acara terlebih dahulu</div>;
   }
@@ -198,8 +245,13 @@ export default function Scanner() {
       {/* Main Scanner Area */}
       <div className="flex-1 flex flex-col">
         <div className="text-center mb-6">
-          <h1 className="text-2xl md:text-3xl font-bold text-slate-900 uppercase tracking-tight">{activeEvent.name}</h1>
-          <p className="text-slate-500 mt-1">ABSENSI PESERTA</p>
+          <div className="flex justify-center items-center gap-3 mb-2">
+            <h1 className="text-2xl md:text-3xl font-bold text-slate-900 uppercase tracking-tight">{activeEvent.name}</h1>
+            <div className={`px-3 py-1 rounded-full text-xs font-bold border ${isOnline ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-red-50 text-red-600 border-red-200 animate-pulse'}`}>
+              {isOnline ? '● ONLINE' : '○ OFFLINE'}
+            </div>
+          </div>
+          <p className="text-slate-500">ABSENSI PESERTA</p>
         </div>
 
         <Card className={`flex-1 flex flex-col overflow-hidden transition-colors duration-300 relative ${
@@ -387,11 +439,42 @@ export default function Scanner() {
           </CardContent>
         </Card>
         
-        <div className="bg-white p-4 rounded-xl border border-slate-200 flex items-center gap-3 text-sm text-slate-600 shadow-sm">
-          <div className={`w-2 h-2 rounded-full animate-pulse ${scanMode === 'usb' ? 'bg-emerald-500' : 'bg-blue-500'}`}></div>
-          {scanMode === 'usb' ? 'Scanner USB aktif' : 'Kamera HP aktif'}
+        <div className="bg-white p-4 rounded-xl border border-slate-200 flex flex-col gap-3 text-sm text-slate-600 shadow-sm">
+          <div className="flex items-center gap-3">
+            <div className={`w-2 h-2 rounded-full animate-pulse ${scanMode === 'usb' ? 'bg-emerald-500' : 'bg-blue-500'}`}></div>
+            <span>{scanMode === 'usb' ? 'Scanner USB aktif' : 'Kamera HP aktif'}</span>
+          </div>
+          <div className="flex justify-between items-center border-t pt-3">
+            <span className="font-medium">ID Perangkat: <span className="text-slate-900">{scannerId || 'Belum diatur'}</span></span>
+            <Button variant="ghost" size="sm" onClick={() => setShowScannerConfig(true)} className="h-6 px-2 text-xs">Ubah</Button>
+          </div>
         </div>
       </div>
+
+      <Dialog open={showScannerConfig} onOpenChange={setShowScannerConfig}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Konfigurasi Scanner</DialogTitle>
+            <DialogDescription>
+              Tentukan identitas perangkat ini agar panitia dapat melacak gerbang masuk mana yang melakukan scan.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <Label htmlFor="scannerId">Scanner ID (Misal: Gate A, Pintu VIP)</Label>
+            <Input 
+              id="scannerId" 
+              value={tempScannerId} 
+              onChange={(e) => setTempScannerId(e.target.value)} 
+              placeholder="Masukkan identitas scanner..."
+              className="mt-2"
+              autoFocus
+            />
+          </div>
+          <DialogFooter>
+            <Button disabled={!tempScannerId.trim()} onClick={handleSaveScannerId}>Simpan Konfigurasi</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

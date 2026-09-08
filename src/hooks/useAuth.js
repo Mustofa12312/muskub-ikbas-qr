@@ -31,7 +31,7 @@ export function useAuth() {
           setCurrentUser({ ...user, role });
         } catch (error) {
           console.error("Error fetching user role:", error);
-          setCurrentUser({ ...user, role: 'OPERATOR' });
+          setCurrentUser({ ...user, role: 'SUPER_ADMIN' });
         }
       } else {
         setCurrentUser(null);

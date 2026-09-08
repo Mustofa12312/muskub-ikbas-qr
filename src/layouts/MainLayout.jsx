@@ -1,13 +1,16 @@
 import { Navigate, Outlet } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { EventProvider } from '../context/EventContext';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
-import { LayoutDashboard, Users, Calendar, ScanLine, History, ClipboardCheck, Settings } from 'lucide-react';
+import { LayoutDashboard, Users, Calendar, ScanLine, History, ClipboardCheck, Settings, LogOut } from 'lucide-react';
+import { signOut } from 'firebase/auth';
+import { auth } from '../services/firebase';
 
 export default function MainLayout() {
   const { currentUser, loading } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
 
   if (loading) {
     return <div className="h-screen w-screen flex items-center justify-center">Loading...</div>;
@@ -28,6 +31,15 @@ export default function MainLayout() {
 
   const userRole = currentUser?.role || 'OPERATOR';
   const filteredNavItems = navItems.filter(item => item.roles.includes(userRole));
+
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      navigate('/login');
+    } catch (error) {
+      console.error('Error logging out:', error);
+    }
+  };
 
   return (
     <EventProvider>
@@ -61,6 +73,16 @@ export default function MainLayout() {
               <span className="font-medium">Mulai Scanner</span>
             </Link>
           </nav>
+          
+          <div className="mt-auto pt-6 border-t border-slate-800">
+            <button 
+              onClick={handleLogout}
+              className="flex items-center gap-3 px-4 py-3 w-full text-slate-300 hover:bg-red-900/50 hover:text-red-400 rounded-md transition-colors"
+            >
+              <LogOut size={20} />
+              <span className="font-medium">Keluar</span>
+            </button>
+          </div>
         </aside>
 
         {/* Main Content */}
@@ -91,6 +113,11 @@ export default function MainLayout() {
                 <ScanLine size={28} />
               </div>
             </Link>
+            
+            <button onClick={handleLogout} className="flex flex-col items-center gap-1 p-2 text-slate-500 hover:text-red-500">
+              <LogOut size={24} />
+              <span className="text-[10px] font-medium">Keluar</span>
+            </button>
         </nav>
       </div>
     </EventProvider>

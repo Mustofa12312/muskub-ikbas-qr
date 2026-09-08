@@ -22,6 +22,19 @@ service cloud.firestore {
       allow update, delete: if false;
     }
     
+    match /attendance/{attendanceId} {
+      allow read, write: if isAuthenticated();
+    }
+    
+    match /attendanceLogs/{logId} {
+      allow read, write: if isAuthenticated();
+    }
+    
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated(); // For setting up initial roles
+    }
+    
     match /{document=**} {
       allow read, write: if false; // Deny anything else
     }

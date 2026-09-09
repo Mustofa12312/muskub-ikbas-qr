@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useEvent } from '../../context/EventContext';
@@ -9,6 +11,7 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 
 export default function Dashboard() {
   const { activeEvent, loading: eventLoading } = useEvent();
+  const navigate = useNavigate();
   const [stats, setStats] = useState({ total: 0, present: 0, absent: 0, percentage: 0 });
   const [recentScans, setRecentScans] = useState([]);
   const [chartData, setChartData] = useState([]);
@@ -97,9 +100,15 @@ export default function Dashboard() {
 
   if (!activeEvent) {
     return (
-      <div className="flex flex-col items-center justify-center h-full text-slate-500">
-        <h2 className="text-xl font-medium">Belum ada acara aktif</h2>
-        <p>Silakan buat acara baru di halaman Acara.</p>
+      <div className="flex flex-col items-center justify-center h-full min-h-[400px] text-slate-500 animate-in fade-in duration-500">
+        <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mb-6">
+          <Activity className="w-10 h-10 text-slate-300" />
+        </div>
+        <h2 className="text-2xl font-bold text-slate-800 mb-2">Belum ada acara aktif</h2>
+        <p className="text-slate-500 mb-8 max-w-md text-center">Silakan buat acara baru atau pilih acara yang sudah ada di halaman Acara untuk melihat statistik dan melakukan absensi.</p>
+        <Button onClick={() => navigate('/events')} size="lg" className="shadow-md hover:shadow-lg transition-all">
+          + Buat Acara Sekarang
+        </Button>
       </div>
     );
   }

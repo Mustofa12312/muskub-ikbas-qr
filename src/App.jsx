@@ -23,11 +23,12 @@ function App() {
           <Route path="/events" element={<Events />} />
           <Route path="/participants" element={<Participants />} />
           <Route path="/attendance" element={<Attendance />} />
-          <Route path="/scanner" element={<Scanner />} />
           <Route path="/audit-log" element={<AuditLog />} />
           <Route path="/scanner-logs" element={<ScannerLogs />} />
           <Route path="/settings" element={<BackupSettings />} />
         </Route>
+        
+        <Route path="/scanner" element={<Scanner />} />
         
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

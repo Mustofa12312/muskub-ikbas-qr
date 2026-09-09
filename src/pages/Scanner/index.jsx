@@ -413,21 +413,28 @@ export default function Scanner() {
             <div className="space-y-3">
               {recentScans.length > 0 ? (
                 recentScans.map((scan) => (
-                  <div key={scan.id} className="flex items-center gap-3 bg-slate-800 p-2.5 rounded-lg animate-in slide-in-from-right-4 fade-in">
-                    <div className="w-10 h-10 rounded bg-slate-700 overflow-hidden shrink-0 border border-slate-600">
-                      {scan.photoUrl ? (
-                        <img src={scan.photoUrl} alt="" className="w-full h-full object-cover" />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-slate-500">
-                          <Users size={16} />
-                        </div>
-                      )}
+                  <div key={scan.id} className="flex items-center gap-3.5 bg-slate-800/80 p-3 rounded-xl border border-slate-700/50 shadow-sm animate-in slide-in-from-right-4 fade-in hover:bg-slate-800 transition-colors">
+                    <div className="relative shrink-0">
+                      <div className="w-12 h-12 rounded-full bg-slate-700 overflow-hidden border-2 border-slate-600 shadow-inner">
+                        {scan.photoUrl ? (
+                          <img src={scan.photoUrl} alt={scan.name} className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-slate-400">
+                            <Users size={20} />
+                          </div>
+                        )}
+                      </div>
+                      <div className="absolute -bottom-0.5 -right-0.5 bg-[#0f172a] rounded-full p-[2px]">
+                        <CheckCircle size={14} className="text-emerald-500 fill-emerald-500/20" />
+                      </div>
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate text-slate-100">{scan.name}</p>
-                      <p className="text-xs text-slate-400 truncate">{scan.attendanceTime}</p>
+                      <p className="text-sm font-semibold truncate text-slate-100">{scan.name}</p>
+                      <p className="text-[11px] font-medium text-slate-400 truncate flex items-center gap-1.5 mt-0.5">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                        {scan.attendanceTime} WIB
+                      </p>
                     </div>
-                    <CheckCircle size={16} className="text-emerald-500 shrink-0" />
                   </div>
                 ))
               ) : (
@@ -496,21 +503,29 @@ function ScanOverlay() {
 
 function ParticipantCard({ participant }) {
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden w-full">
-      <div className="h-24 bg-gradient-to-r from-emerald-600 to-emerald-800"></div>
-      <div className="px-6 pb-6 pt-0 flex flex-col items-center -mt-12">
-        <div className="w-24 h-24 rounded-full border-4 border-white bg-slate-100 overflow-hidden shadow-md z-10 mb-4">
-          {participant.photoUrl ? (
-            <img src={participant.photoUrl} alt={participant.name} className="w-full h-full object-cover" />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center text-slate-400">
-              <Users size={40} />
-            </div>
-          )}
+    <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden w-full relative">
+      <div className="h-28 bg-gradient-to-br from-emerald-500 via-emerald-600 to-teal-700 relative overflow-hidden">
+        <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-[0.05]"></div>
+        <div className="absolute -bottom-10 -right-10 w-32 h-32 bg-white/10 rounded-full blur-2xl"></div>
+      </div>
+      <div className="px-6 pb-8 pt-0 flex flex-col items-center -mt-14 relative z-10">
+        <div className="relative mb-5">
+          <div className="w-28 h-28 rounded-full border-4 border-white bg-slate-50 overflow-hidden shadow-xl">
+            {participant.photoUrl ? (
+              <img src={participant.photoUrl} alt={participant.name} className="w-full h-full object-cover" />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center text-slate-300">
+                <Users size={48} />
+              </div>
+            )}
+          </div>
+          <div className="absolute bottom-1 right-1 bg-white rounded-full p-0.5 shadow-md border border-slate-50">
+            <CheckCircle size={22} className="text-emerald-500 fill-emerald-50" />
+          </div>
         </div>
-        <h3 className="text-xl font-bold text-slate-900 uppercase text-center mb-1">{participant.name}</h3>
-        <p className="text-slate-600 font-medium text-center">{participant.delegation}</p>
-        <div className="mt-3 px-3 py-1 bg-slate-100 text-slate-700 text-xs font-semibold rounded-full uppercase tracking-wider">
+        <h3 className="text-xl font-extrabold text-slate-900 uppercase text-center mb-1.5 tracking-tight">{participant.name}</h3>
+        <p className="text-slate-500 font-medium text-center text-sm">{participant.delegation}</p>
+        <div className="mt-5 px-5 py-1.5 bg-emerald-50 text-emerald-700 text-xs font-bold rounded-full uppercase tracking-wider border border-emerald-100 shadow-sm">
           {participant.position}
         </div>
       </div>

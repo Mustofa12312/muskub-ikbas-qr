@@ -186,27 +186,29 @@ export default function Participants() {
     if (!importPreviewData || importPreviewData.validRows.length === 0) return;
     
     setIsImporting(true);
-    let successCount = 0;
-    let errorCount = 0;
-
-    for (const row of importPreviewData.validRows) {
+    setIsImporting(true);
+    
+    const participantsList = importPreviewData.validRows.map(row => {
       const customId = row.ID || row['ID (Opsional)'] || row.id || row.Id;
+      return {
+        name: row.Nama,
+        delegation: row.Delegasi,
+        position: row.Jabatan,
+        qrCode: customId ? String(customId) : undefined
+      };
+    });
 
-      try {
-        await participantService.createParticipant({
-          name: row.Nama,
-          delegation: row.Delegasi,
-          position: row.Jabatan,
-          qrCode: customId ? String(customId) : undefined,
-          eventId: activeEvent.id
-        }, null);
-        successCount++;
-      } catch (_err) {
-        errorCount++;
+    try {
+      const { successCount, errorCount } = await participantService.createBulkParticipants(participantsList, activeEvent.id);
+      
+      if (errorCount > 0) {
+        toast.warning(`Import selesai: ${successCount} berhasil, ${errorCount} gagal (QR duplikat)`);
+      } else {
+        toast.success(`Import selesai: ${successCount} data berhasil dimasukkan.`);
       }
+    } catch (error) {
+      toast.error('Gagal melakukan import massal: ' + error.message);
     }
-
-    toast.success(`Import selesai: ${successCount} berhasil, ${errorCount} gagal.`);
     setIsImporting(false);
     setIsImportModalOpen(false);
     setImportPreviewData(null);

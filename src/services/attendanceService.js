@@ -1,4 +1,4 @@
-import { collection, doc, getDocs, query, where, orderBy, limit, runTransaction, onSnapshot, serverTimestamp } from 'firebase/firestore';
+import { collection, doc, getDocs, getDoc, query, where, orderBy, limit, runTransaction, onSnapshot, serverTimestamp } from 'firebase/firestore';
 import { db } from './firebase';
 import { mockParticipants } from './participantService';
 
@@ -98,6 +98,23 @@ export const attendanceService = {
     }
 
     try {
+      // Time-Gate Validation
+      const eventDoc = await getDoc(doc(db, 'events', eventId));
+      if (!eventDoc.exists()) {
+        return { success: false, status: 'ERROR', message: 'Acara tidak ditemukan' };
+      }
+      const eventData = eventDoc.data();
+      if (action === 'in') {
+        const _now = new Date();
+        const currentTime = _now.toTimeString().split(' ')[0].substring(0, 5); // HH:MM
+        if (eventData.checkInStart && currentTime < eventData.checkInStart) {
+          return { success: false, status: 'ERROR', message: `Absensi baru dibuka pukul ${eventData.checkInStart}` };
+        }
+        if (eventData.checkInEnd && currentTime > eventData.checkInEnd) {
+          return { success: false, status: 'ERROR', message: `Absensi telah ditutup sejak pukul ${eventData.checkInEnd}` };
+        }
+      }
+
       // 1. Query outside transaction to find docId
       const q = query(
         collection(db, PARTICIPANTS_COLLECTION),

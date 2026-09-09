@@ -2,37 +2,55 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // Only authenticated users can access the database
+    // Checks if user is authenticated
     function isAuthenticated() {
       return request.auth != null;
     }
+    
+    // Fetches the user's role from the users collection
+    function getUserRole() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    }
+    
+    // Checks if user is SUPER_ADMIN or ADMIN
+    function isAdmin() {
+      return isAuthenticated() && (getUserRole() == 'SUPER_ADMIN' || getUserRole() == 'ADMIN');
+    }
+    
+    // Checks if user is SUPER_ADMIN
+    function isSuperAdmin() {
+      return isAuthenticated() && getUserRole() == 'SUPER_ADMIN';
+    }
 
     match /events/{eventId} {
-      allow read, write: if isAuthenticated();
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
     }
     
     match /participants/{participantId} {
-      allow read, write: if isAuthenticated();
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
     }
     
     match /auditLogs/{logId} {
-      allow read: if isAuthenticated();
-      allow create: if isAuthenticated();
-      // Audit logs cannot be updated or deleted
-      allow update, delete: if false;
+      allow read: if isAdmin();
+      allow create: if isAuthenticated(); // Anyone can create a log entry, but only admins can view
+      allow update, delete: if false; // Audit logs are immutable
     }
     
     match /attendance/{attendanceId} {
-      allow read, write: if isAuthenticated();
+      allow read, write: if isAuthenticated(); // Operators need to write attendance
     }
     
     match /attendanceLogs/{logId} {
-      allow read, write: if isAuthenticated();
+      allow read, write: if isAuthenticated(); // Operators need to log attendance
     }
     
     match /users/{userId} {
-      allow read: if isAuthenticated();
-      allow write: if isAuthenticated(); // For setting up initial roles
+      // Super admins can do everything with users
+      // Users can read their own profile
+      allow read: if isSuperAdmin() || request.auth.uid == userId;
+      allow write: if isSuperAdmin() || request.auth.uid == userId; 
     }
     
     match /{document=**} {

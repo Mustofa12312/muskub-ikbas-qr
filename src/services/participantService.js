@@ -1,4 +1,4 @@
-import { collection, doc, getDocs, getDoc, addDoc, updateDoc, deleteDoc, query, where, orderBy } from 'firebase/firestore';
+import { collection, doc, getDocs, getDoc, addDoc, updateDoc, deleteDoc, query, where, orderBy, writeBatch } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { db, storage } from './firebase';
 import { auditService } from './auditService';
@@ -85,6 +85,89 @@ export const participantService = {
 
     auditService.logAction('CREATE', 'Peserta', `Mendaftarkan peserta baru: ${participantData.name}`);
     return { id: docRef.id, ...newParticipant, qrCode };
+  },
+
+  async createBulkParticipants(participantsList, eventId) {
+    if (isMockMode) {
+      const newParticipants = participantsList.map(p => {
+        const id = Math.random().toString(36).substr(2, 9);
+        return {
+          ...p,
+          id,
+          eventId,
+          photoUrl: '',
+          status: 'BELUM HADIR',
+          qrCode: p.qrCode || `MUSKUB4-PST-${id}`,
+          createdAt: new Date().toISOString()
+        };
+      });
+      mockParticipants.push(...newParticipants);
+      auditService.logAction('CREATE_BULK', 'Peserta', `Mendaftarkan ${newParticipants.length} peserta baru`);
+      return { successCount: newParticipants.length, errorCount: 0 };
+    }
+
+    // Ambil daftar QR Code yang sudah ada di event ini untuk mencegah duplikasi
+    const q = query(collection(db, PARTICIPANTS_COLLECTION), where('eventId', '==', eventId));
+    const snapshot = await getDocs(q);
+    const existingQRCodes = new Set();
+    snapshot.docs.forEach(doc => {
+      const qr = doc.data().qrCode;
+      if (qr) existingQRCodes.add(qr);
+    });
+
+    // Validasi data baru
+    const validParticipants = [];
+    const newQRs = new Set();
+    let errorCount = 0;
+
+    for (const p of participantsList) {
+      if (p.qrCode && (existingQRCodes.has(p.qrCode) || newQRs.has(p.qrCode))) {
+        errorCount++; // Duplikat QR
+        continue;
+      }
+      if (p.qrCode) newQRs.add(p.qrCode);
+      validParticipants.push(p);
+    }
+
+    if (validParticipants.length === 0) {
+      return { successCount: 0, errorCount: participantsList.length };
+    }
+
+    // Eksekusi Batch (Batas Firestore Batch adalah 500)
+    let batch = writeBatch(db);
+    let operationCounter = 0;
+    
+    for (const p of validParticipants) {
+      const docRef = doc(collection(db, PARTICIPANTS_COLLECTION));
+      const qrCode = p.qrCode || `MUSKUB4-PST-${docRef.id}`;
+      
+      const newParticipant = {
+        name: p.name,
+        delegation: p.delegation,
+        position: p.position,
+        eventId,
+        photoUrl: '',
+        status: 'BELUM HADIR',
+        qrCode,
+        createdAt: new Date().toISOString()
+      };
+      
+      batch.set(docRef, newParticipant);
+      operationCounter++;
+
+      if (operationCounter === 490) { // Limit aman
+        await batch.commit();
+        batch = writeBatch(db);
+        operationCounter = 0;
+      }
+    }
+    
+    if (operationCounter > 0) {
+      await batch.commit();
+    }
+
+    auditService.logAction('CREATE_BULK', 'Peserta', `Mendaftarkan ${validParticipants.length} peserta baru secara masal`);
+    return { successCount: validParticipants.length, errorCount: errorCount + (participantsList.length - validParticipants.length) };
   },
 
   async updateParticipant(id, participantData, photoFile, oldPhotoUrl) {

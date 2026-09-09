@@ -12,6 +12,7 @@ import Scanner from './pages/Scanner';
 import AuditLog from './pages/AuditLog';
 import ScannerLogs from './pages/ScannerLogs';
 import BackupSettings from './pages/Settings/Backup';
+import Users from './pages/Users';
 
 function App() {
   return (
@@ -27,6 +28,7 @@ function App() {
           <Route path="/attendance" element={<Attendance />} />
           <Route path="/audit-log" element={<AuditLog />} />
           <Route path="/scanner-logs" element={<ScannerLogs />} />
+          <Route path="/users" element={<Users />} />
           <Route path="/settings" element={<BackupSettings />} />
         </Route>
         

@@ -3,7 +3,7 @@ import { Navigate, Outlet } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
-import { LayoutDashboard, Users, Calendar, ScanLine, History, ClipboardCheck, Settings, LogOut, ChevronLeft, ChevronRight } from 'lucide-react';
+import { LayoutDashboard, Users, Calendar, ScanLine, History, ClipboardCheck, Settings, LogOut, ChevronLeft, ChevronRight, UserCog } from 'lucide-react';
 import { signOut } from 'firebase/auth';
 import { auth } from '../services/firebase';
 
@@ -27,6 +27,7 @@ export default function MainLayout() {
     { name: 'Kehadiran', path: '/attendance', icon: ClipboardCheck, roles: ['SUPER_ADMIN', 'ADMIN', 'OPERATOR'] },
     { name: 'Audit Log', path: '/audit-log', icon: History, roles: ['SUPER_ADMIN'] },
     { name: 'Riwayat Scan', path: '/scanner-logs', icon: ScanLine, roles: ['SUPER_ADMIN', 'ADMIN'] },
+    { name: 'Pengguna', path: '/users', icon: UserCog, roles: ['SUPER_ADMIN'] },
     { name: 'Pengaturan', path: '/settings', icon: Settings, roles: ['SUPER_ADMIN'] },
   ];
 

@@ -1,4 +1,4 @@
-import { collection, doc, getDocs, getDoc, addDoc, updateDoc, deleteDoc, query, orderBy } from 'firebase/firestore';
+import { collection, doc, getDocs, getDoc, addDoc, updateDoc, deleteDoc, query, orderBy, where } from 'firebase/firestore';
 import { db } from './firebase';
 import { auditService } from './auditService';
 
@@ -92,6 +92,20 @@ export const eventService = {
         deletedAt: new Date().toISOString()
       });
       auditService.logAction('DELETE', 'Acara', `Mengarsipkan acara: ${eventName}`);
+      
+      try {
+        const pQ = query(collection(db, 'participants'), where('eventId', '==', id));
+        const pSnapshot = await getDocs(pQ);
+        const updatePromises = pSnapshot.docs.map(pDoc => 
+          updateDoc(doc(db, 'participants', pDoc.id), {
+            isDeleted: true,
+            deletedAt: new Date().toISOString()
+          })
+        );
+        await Promise.all(updatePromises);
+      } catch (err) {
+        console.warn('Gagal mengarsipkan peserta acara ini:', err);
+      }
     }
   }
 };

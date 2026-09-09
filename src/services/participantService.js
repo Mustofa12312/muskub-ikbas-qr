@@ -99,6 +99,14 @@ export const participantService = {
     let photoUrl = participantData.photoUrl || oldPhotoUrl;
     if (photoFile) {
       photoUrl = await this.uploadPhoto(participantData.eventId, photoFile);
+      if (oldPhotoUrl && typeof oldPhotoUrl === 'string' && oldPhotoUrl.includes('firebasestorage.googleapis.com')) {
+        try {
+          const oldRef = ref(storage, oldPhotoUrl);
+          await deleteObject(oldRef);
+        } catch (error) {
+          console.warn("Gagal menghapus foto lama:", error);
+        }
+      }
     }
 
     const docRef = doc(db, PARTICIPANTS_COLLECTION, id);

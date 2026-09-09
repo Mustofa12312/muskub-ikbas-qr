@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
-import { EventProvider } from '../context/EventContext';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { LayoutDashboard, Users, Calendar, ScanLine, History, ClipboardCheck, Settings, LogOut, ChevronLeft, ChevronRight } from 'lucide-react';
@@ -44,8 +43,7 @@ export default function MainLayout() {
   };
 
   return (
-    <EventProvider>
-      <div className="min-h-screen bg-slate-50 flex flex-col md:flex-row">
+    <div className="min-h-screen bg-slate-50 flex flex-col md:flex-row">
         {/* Desktop Sidebar */}
         <aside 
           className={cn(
@@ -183,6 +181,5 @@ export default function MainLayout() {
             </button>
         </nav>
       </div>
-    </EventProvider>
   );
 }

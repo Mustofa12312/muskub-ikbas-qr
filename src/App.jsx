@@ -3,6 +3,7 @@ import { Toaster } from '@/components/ui/sonner';
 import MainLayout from './layouts/MainLayout';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
+import { EventProvider } from './context/EventContext';
 
 import Events from './pages/Events';
 import Participants from './pages/Participants';
@@ -15,8 +16,9 @@ import BackupSettings from './pages/Settings/Backup';
 function App() {
   return (
     <Router>
-      <Routes>
-        <Route path="/login" element={<Login />} />
+      <EventProvider>
+        <Routes>
+          <Route path="/login" element={<Login />} />
         
         <Route element={<MainLayout />}>
           <Route path="/" element={<Dashboard />} />
@@ -32,6 +34,7 @@ function App() {
         
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+      </EventProvider>
       <Toaster position="top-center" richColors />
     </Router>
   );

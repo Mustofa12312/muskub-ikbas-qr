@@ -105,6 +105,7 @@ export default function Participants() {
       closeDialog();
       loadParticipants();
     } catch (error) {
+      console.error('=== SAVE ERROR ===', error.code, error.message, error);
       toast.error(`Gagal ${editingId ? 'memperbarui' : 'menambah'} peserta: ` + error.message);
     } finally {
       setIsSubmitting(false);

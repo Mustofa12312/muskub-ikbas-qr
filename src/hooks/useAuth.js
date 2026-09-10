@@ -23,9 +23,22 @@ export function useAuth() {
           const userDocRef = doc(db, 'users', user.uid);
           const userDoc = await getDoc(userDocRef);
           
-          let role = 'SUPER_ADMIN'; // Default fallback agar developer tidak terkunci
+          let role = 'SUPER_ADMIN'; // Default fallback
           if (userDoc.exists()) {
             role = userDoc.data().role || 'SUPER_ADMIN';
+          } else {
+            // Auto-create user document if it doesn't exist to satisfy Firestore rules
+            try {
+              const { setDoc } = await import('firebase/firestore');
+              await setDoc(userDocRef, {
+                email: user.email,
+                role: 'SUPER_ADMIN',
+                createdAt: new Date().toISOString()
+              });
+              console.log("Created missing user profile with SUPER_ADMIN role");
+            } catch (e) {
+              console.warn("Could not auto-create user profile", e);
+            }
           }
           
           setCurrentUser({ ...user, role });

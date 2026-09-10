@@ -23,7 +23,7 @@ export default function MainLayout() {
   const navItems = [
     { name: 'Dashboard', path: '/', icon: LayoutDashboard, roles: ['SUPER_ADMIN', 'ADMIN', 'OPERATOR'] },
     { name: 'Acara', path: '/events', icon: Calendar, roles: ['SUPER_ADMIN', 'ADMIN'] },
-    { name: 'Peserta', path: '/participants', icon: Users, roles: ['SUPER_ADMIN', 'ADMIN'] },
+    { name: 'Master Peserta', path: '/participants', icon: Users, roles: ['SUPER_ADMIN', 'ADMIN'] },
     { name: 'Kehadiran', path: '/attendance', icon: ClipboardCheck, roles: ['SUPER_ADMIN', 'ADMIN', 'OPERATOR'] },
     { name: 'Audit Log', path: '/audit-log', icon: History, roles: ['SUPER_ADMIN'] },
     { name: 'Riwayat Scan', path: '/scanner-logs', icon: ScanLine, roles: ['SUPER_ADMIN', 'ADMIN'] },
@@ -162,7 +162,7 @@ export default function MainLayout() {
             {userRole !== 'OPERATOR' && (
               <Link to="/participants" className={cn("flex flex-col items-center gap-1 p-2", location.pathname === '/participants' ? "text-emerald-600" : "text-slate-500")}>
                 <Users size={24} />
-                <span className="text-[10px] font-medium">Peserta</span>
+                <span className="text-[10px] font-medium">Master</span>
               </Link>
             )}
             

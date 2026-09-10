@@ -12,7 +12,7 @@ export const attendanceService = {
     if (!qrCode || !eventId) throw new Error('QR Code atau Event ID tidak valid');
 
     if (isMockMode) {
-      const idx = mockParticipants.findIndex(p => p.qrCode === qrCode && p.eventId === eventId);
+      const idx = mockParticipants.findIndex(p => p.qrCode === qrCode);
       if (idx === -1) {
         return { success: false, status: 'NOT_FOUND', message: 'QR Code tidak dikenali' };
       }
@@ -118,8 +118,7 @@ export const attendanceService = {
       // 1. Query outside transaction to find docId
       const q = query(
         collection(db, PARTICIPANTS_COLLECTION),
-        where('qrCode', '==', qrCode),
-        where('eventId', '==', eventId)
+        where('qrCode', '==', qrCode)
       );
       const snapshot = await getDocs(q);
       

@@ -8,27 +8,26 @@ const PARTICIPANTS_COLLECTION = 'participants';
 const isMockMode = import.meta.env.VITE_FIREBASE_API_KEY === "YOUR_API_KEY" || !import.meta.env.VITE_FIREBASE_API_KEY;
 
 let mockParticipants = [
-  { id: 'p1', eventId: '1', name: 'Ahmad Dahlan', mpw: 'Jawa Timur', mpc: 'Pamekasan', position: 'Ketua', status: 'BELUM HADIR', qrCode: 'MUSKUB4-PST-p1' },
-  { id: 'p2', eventId: '1', name: 'Siti Aminah', mpw: 'Jawa Timur', mpc: 'Sampang', position: 'Anggota', status: 'BELUM HADIR', qrCode: 'MUSKUB4-PST-p2' },
+  { id: 'p1', name: 'Ahmad Dahlan', mpw: 'Jawa Timur', mpc: 'Pamekasan', position: 'Ketua', qrCode: 'MUSKUB4-PST-p1' },
+  { id: 'p2', name: 'Siti Aminah', mpw: 'Jawa Timur', mpc: 'Sampang', position: 'Anggota', qrCode: 'MUSKUB4-PST-p2' },
 ];
 
 export const participantService = {
-  async getParticipantsByEvent(eventId) {
+  async getAllParticipants() {
     if (isMockMode) {
       return mockParticipants
-        .filter(p => p.eventId === eventId && !p.isDeleted)
+        .filter(p => !p.isDeleted)
         .sort((a, b) => a.name.localeCompare(b.name));
     }
 
     const q = query(
       collection(db, PARTICIPANTS_COLLECTION),
-      where('eventId', '==', eventId),
       orderBy('name', 'asc')
     );
     const snapshot = await getDocs(q);
     return snapshot.docs
       .map(doc => ({ id: doc.id, ...doc.data() }))
-      .filter(p => !p.isDeleted); // Client-side filter to support existing data
+      .filter(p => !p.isDeleted);
   },
 
   async createParticipant(participantData, photoFile) {
@@ -41,7 +40,6 @@ export const participantService = {
         ...participantData,
         id,
         photoUrl: '', // Mock doesn't support real storage upload easily without DataURL
-        status: 'BELUM HADIR',
         qrCode,
         createdAt: new Date().toISOString()
       };
@@ -53,7 +51,6 @@ export const participantService = {
     if (participantData.qrCode) {
       const q = query(
         collection(db, PARTICIPANTS_COLLECTION),
-        where('eventId', '==', participantData.eventId),
         where('qrCode', '==', participantData.qrCode)
       );
       const snapshot = await getDocs(q);
@@ -69,7 +66,6 @@ export const participantService = {
     const newParticipant = {
       ...participantData,
       photoUrl,
-      status: 'BELUM HADIR',
       qrCode: participantData.qrCode || '', // Temporary, will update below if empty
       createdAt: new Date().toISOString()
     };
@@ -87,16 +83,14 @@ export const participantService = {
     return { id: docRef.id, ...newParticipant, qrCode };
   },
 
-  async createBulkParticipants(participantsList, eventId) {
+  async createBulkParticipants(participantsList) {
     if (isMockMode) {
       const newParticipants = participantsList.map(p => {
         const id = Math.random().toString(36).substr(2, 9);
         return {
           ...p,
           id,
-          eventId,
           photoUrl: '',
-          status: 'BELUM HADIR',
           qrCode: p.qrCode || `MUSKUB4-PST-${id}`,
           createdAt: new Date().toISOString()
         };
@@ -107,8 +101,7 @@ export const participantService = {
     }
 
     // Ambil daftar QR Code yang sudah ada di event ini untuk mencegah duplikasi
-    const q = query(collection(db, PARTICIPANTS_COLLECTION), where('eventId', '==', eventId));
-    const snapshot = await getDocs(q);
+    const snapshot = await getDocs(collection(db, PARTICIPANTS_COLLECTION));
     const existingQRCodes = new Set();
     snapshot.docs.forEach(doc => {
       const qr = doc.data().qrCode;
@@ -146,9 +139,7 @@ export const participantService = {
         mpw: p.mpw,
         mpc: p.mpc,
         position: p.position,
-        eventId,
         photoUrl: '',
-        status: 'BELUM HADIR',
         qrCode,
         createdAt: new Date().toISOString()
       };

@@ -51,22 +51,18 @@ export default function Participants() {
   const loadParticipants = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await participantService.getParticipantsByEvent(activeEvent.id);
+      const data = await participantService.getAllParticipants();
       setParticipants(data);
     } catch (error) {
       toast.error('Gagal memuat daftar peserta');
     } finally {
       setLoading(false);
     }
-  }, [activeEvent]);
+  }, []);
 
   useEffect(() => {
-    if (activeEvent) {
-      loadParticipants();
-    } else {
-      setLoading(false);
-    }
-  }, [activeEvent, loadParticipants]);
+    loadParticipants();
+  }, [loadParticipants]);
 
   const closeDialog = () => {
     setIsOpen(false);
@@ -89,7 +85,6 @@ export default function Participants() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!activeEvent) return toast.error('Pilih acara terlebih dahulu');
     
     setIsSubmitting(true);
     try {
@@ -97,15 +92,14 @@ export default function Participants() {
         const participantToEdit = participants.find(p => p.id === editingId);
         await participantService.updateParticipant(
           editingId,
-          { ...formData, eventId: activeEvent.id },
+          { ...formData },
           photoFile,
           participantToEdit?.photoUrl
         );
         toast.success('Data peserta berhasil diperbarui');
       } else {
         await participantService.createParticipant({
-          ...formData,
-          eventId: activeEvent.id
+          ...formData
         }, photoFile);
         toast.success('Peserta berhasil ditambahkan');
       }
@@ -201,7 +195,7 @@ export default function Participants() {
     });
 
     try {
-      const { successCount, errorCount } = await participantService.createBulkParticipants(participantsList, activeEvent.id);
+      const { successCount, errorCount } = await participantService.createBulkParticipants(participantsList);
       
       if (errorCount > 0) {
         toast.warning(`Import selesai: ${successCount} berhasil, ${errorCount} gagal (QR duplikat)`);
@@ -239,14 +233,16 @@ export default function Participants() {
   };
 
   const handleShareWA = (participant) => {
-    const message = `Halo ${participant.name},\n\nTerima kasih telah terdaftar sebagai peserta ${activeEvent.name}.\nBerikut adalah Kode Akses QR Anda: *${participant.qrCode}*\n\nHarap tunjukkan kode ini saat tiba di lokasi acara untuk Check-in.\n\nSalam,\nPanitia`;
+    const eventName = activeEvent ? activeEvent.name : "Acara";
+    const message = `Halo ${participant.name},\n\nTerima kasih telah terdaftar sebagai peserta ${eventName}.\nBerikut adalah Kode Akses QR Anda: *${participant.qrCode}*\n\nHarap tunjukkan kode ini saat tiba di lokasi acara untuk Check-in.\n\nSalam,\nPanitia`;
     const encodedMessage = encodeURIComponent(message);
     window.open(`https://wa.me/?text=${encodedMessage}`, '_blank');
   };
 
   const handleShareEmail = (participant) => {
-    const subject = `Kode Akses QR - ${activeEvent.name}`;
-    const body = `Halo ${participant.name},\n\nTerima kasih telah terdaftar sebagai peserta ${activeEvent.name}.\nBerikut adalah Kode Akses QR/ID Anda: ${participant.qrCode}\n\nHarap tunjukkan kode ini saat tiba di lokasi acara untuk proses Check-in.\n\nSalam,\nPanitia`;
+    const eventName = activeEvent ? activeEvent.name : "Acara";
+    const subject = `Kode Akses QR - ${eventName}`;
+    const body = `Halo ${participant.name},\n\nTerima kasih telah terdaftar sebagai peserta ${eventName}.\nBerikut adalah Kode Akses QR/ID Anda: ${participant.qrCode}\n\nHarap tunjukkan kode ini saat tiba di lokasi acara untuk proses Check-in.\n\nSalam,\nPanitia`;
     window.open(`mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`);
   };
 
@@ -300,11 +296,9 @@ export default function Participants() {
       'Nama': p.name,
       'Jabatan': p.position,
       'MPW': p.mpw,
-      'MPC/MPCI': p.mpc,
-      'Status': p.status,
-      'Waktu Hadir': p.status === 'HADIR' ? p.attendanceTime : '-'
+      'MPC/MPCI': p.mpc
     }));
-    exportToExcel(exportData, `Data_Peserta_${activeEvent.name}`);
+    exportToExcel(exportData, `Data_Master_Peserta`);
     toast.success('Data diekspor ke Excel');
   };
 
@@ -314,22 +308,10 @@ export default function Participants() {
       'Nama': p.name,
       'Jabatan': p.position,
       'MPW': p.mpw,
-      'MPC/MPCI': p.mpc,
-      'Status': p.status,
-      'Waktu Hadir': p.status === 'HADIR' ? p.attendanceTime : '-'
+      'MPC/MPCI': p.mpc
     }));
-    exportToCSV(exportData, `Data_Peserta_${activeEvent.name}`);
+    exportToCSV(exportData, `Data_Master_Peserta`);
     toast.success('Data diekspor ke CSV');
-  };
-
-  const handleExportPDF = async () => {
-    try {
-      const stats = await attendanceService.getAttendanceStats(activeEvent.id);
-      exportToPDF(filteredParticipants, activeEvent.name, stats);
-      toast.success('Laporan diekspor ke PDF');
-    } catch (_error) {
-      toast.error('Gagal mengekspor PDF');
-    }
   };
 
   const handlePrintIDCards = async () => {
@@ -379,16 +361,12 @@ export default function Participants() {
     setCurrentPage(1);
   }, [search, filterMpw, filterPosition]);
 
-  if (!activeEvent) {
-    return <div className="p-8 text-center text-slate-500">Pilih atau buat acara terlebih dahulu di menu Acara.</div>;
-  }
-
   return (
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Manajemen Peserta</h1>
-          <p className="text-slate-500">Kelola data peserta untuk {activeEvent.name}</p>
+          <h1 className="text-2xl font-bold text-slate-900">Master Data Peserta</h1>
+          <p className="text-slate-500">Kelola seluruh data induk peserta di sistem</p>
         </div>
         
         <div className="flex flex-wrap gap-2 w-full md:w-auto">
@@ -435,10 +413,6 @@ export default function Participants() {
               <DropdownMenuItem onClick={handleExportCSV}>
                 <FileText className="mr-2 h-4 w-4 text-blue-500" />
                 Export ke CSV
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={handleExportPDF}>
-                <FileText className="mr-2 h-4 w-4 text-red-500" />
-                Export ke PDF
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -617,7 +591,6 @@ export default function Participants() {
                   <TableHead>Peserta</TableHead>
                   <TableHead>Jabatan</TableHead>
                   <TableHead>QR Code</TableHead>
-                  <TableHead>Status</TableHead>
                   <TableHead className="text-right">Aksi</TableHead>
                 </TableRow>
               </TableHeader>
@@ -664,13 +637,6 @@ export default function Participants() {
                           </div>
                         ) : '-'}
                       </TableCell>
-                      <TableCell>
-                        {participant.status === 'HADIR' ? (
-                          <Badge className="bg-emerald-100 text-emerald-800 hover:bg-emerald-100 border-emerald-200">Hadir</Badge>
-                        ) : (
-                          <Badge variant="outline" className="text-slate-500">Belum</Badge>
-                        )}
-                      </TableCell>
                       <TableCell className="text-right flex items-center justify-end gap-2">
                         <Button 
                           size="icon" 
@@ -701,20 +667,6 @@ export default function Participants() {
                           <Mail className="h-4 w-4" />
                         </Button>
                         
-                        {participant.status === 'HADIR' && (
-                          <Button 
-                            size="sm" 
-                            variant="outline" 
-                            className="text-amber-600 border-amber-200 hover:bg-amber-50" 
-                            onClick={() => {
-                              toast.info('Men-generate Sertifikat...');
-                              generateCertificate(participant, activeEvent.name);
-                            }}
-                            title="Cetak Sertifikat"
-                          >
-                            <Award className="h-4 w-4 mr-1" /> Sertifikat
-                          </Button>
-                        )}
                         <Button size="icon" variant="ghost" className="text-red-500 hover:text-red-700 hover:bg-red-50" onClick={() => handleDelete(participant.id)}>
                           <Trash2 className="h-4 w-4" />
                         </Button>

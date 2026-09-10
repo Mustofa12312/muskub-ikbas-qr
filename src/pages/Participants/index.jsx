@@ -1,14 +1,12 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useEvent } from '../../context/EventContext';
 import { participantService } from '../../services/participantService';
-import { attendanceService } from '../../services/attendanceService';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { Plus, Trash2, Users, Search, Download, Upload, FileText, FileSpreadsheet, Edit } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
@@ -16,11 +14,9 @@ import QRCode from 'qrcode';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 import { exportToExcel, importFromExcel, exportToCSV } from '../../utils/excel';
-import { exportToPDF } from '../../utils/pdf';
 import { generateIDCards, generateBulkQRCodes } from '../../utils/idCard';
-import { generateCertificate } from '../../utils/certificate';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
-import { Printer, Award, MessageCircle, Mail } from 'lucide-react';
+import { Printer, MessageCircle, Mail } from 'lucide-react';
 
 export default function Participants() {
   const { activeEvent } = useEvent();

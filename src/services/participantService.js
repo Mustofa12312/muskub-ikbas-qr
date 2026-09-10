@@ -101,24 +101,49 @@ export const participantService = {
       return { successCount: newParticipants.length, errorCount: 0 };
     }
 
-    // Ambil daftar QR Code yang sudah ada di event ini untuk mencegah duplikasi
+    // Ambil daftar QR Code dan Profil yang sudah ada untuk mencegah duplikasi
     const snapshot = await getDocs(collection(db, PARTICIPANTS_COLLECTION));
     const existingQRCodes = new Set();
+    const existingProfiles = new Set();
+    
     snapshot.docs.forEach(doc => {
-      const qr = doc.data().qrCode;
-      if (qr) existingQRCodes.add(qr);
+      const data = doc.data();
+      if (data.qrCode) existingQRCodes.add(data.qrCode);
+      if (data.name && data.mpw && data.mpc) {
+        const profileKey = `${data.name.toLowerCase().trim()}|${data.mpw.toLowerCase().trim()}|${data.mpc.toLowerCase().trim()}`;
+        existingProfiles.add(profileKey);
+      }
     });
 
     // Validasi data baru
     const validParticipants = [];
     const newQRs = new Set();
+    const newProfiles = new Set();
     let errorCount = 0;
 
     for (const p of participantsList) {
+      let isDuplicate = false;
+      
+      // 1. Cek Duplikat QR
       if (p.qrCode && (existingQRCodes.has(p.qrCode) || newQRs.has(p.qrCode))) {
-        errorCount++; // Duplikat QR
+        isDuplicate = true;
+      }
+      
+      // 2. Cek Duplikat Profil (Nama + MPW + MPC)
+      if (p.name && p.mpw && p.mpc) {
+        const profileKey = `${p.name.toLowerCase().trim()}|${p.mpw.toLowerCase().trim()}|${p.mpc.toLowerCase().trim()}`;
+        if (existingProfiles.has(profileKey) || newProfiles.has(profileKey)) {
+          isDuplicate = true;
+        } else if (!isDuplicate) {
+          newProfiles.add(profileKey);
+        }
+      }
+
+      if (isDuplicate) {
+        errorCount++;
         continue;
       }
+
       if (p.qrCode) newQRs.add(p.qrCode);
       validParticipants.push(p);
     }

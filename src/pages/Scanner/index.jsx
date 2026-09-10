@@ -4,7 +4,7 @@ import { useEvent } from '../../context/EventContext';
 import { attendanceService } from '../../services/attendanceService';
 import { Card, CardContent } from '@/components/ui/card';
 import { Users, CheckCircle, AlertTriangle, XCircle, Search, Camera, Keyboard, ArrowLeft, Maximize, Minimize, Volume2, VolumeX, Loader2 } from 'lucide-react';
-import { QrReader } from 'react-qr-reader';
+import { Scanner as QrReader } from '@yudiel/react-qr-scanner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -234,9 +234,9 @@ export default function Scanner() {
     }
   };
 
-  const handleCameraScan = (result, _error) => {
-    if (result) {
-      handleScan(result?.text);
+  const handleCameraScan = (detectedCodes) => {
+    if (detectedCodes && detectedCodes.length > 0) {
+      handleScan(detectedCodes[0].rawValue);
     }
   };
 
@@ -418,12 +418,16 @@ export default function Scanner() {
                           </div>
                         )}
                         <QrReader
-                          onResult={handleCameraScan}
-                          constraints={{ facingMode: 'environment' }}
-                          containerStyle={{ width: '100%', height: '100%' }}
-                          videoStyle={{ objectFit: 'cover' }}
-                          onLoad={(info) => {
-                             if(info) setIsCameraReady(true);
+                          onScan={(codes) => {
+                            handleCameraScan(codes);
+                            setIsCameraReady(true);
+                          }}
+                          components={{
+                            audio: false,
+                            onOff: false,
+                            torch: false,
+                            zoom: false,
+                            finder: false,
                           }}
                         />
                         <div className="absolute inset-0 border-[16px] border-black/40 z-10 pointer-events-none">

@@ -37,6 +37,7 @@ export default function Participants() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({ name: '', mpw: '', mpc: '', position: '', qrCode: '' });
   const [photoFile, setPhotoFile] = useState(null);
+  const [selectedParticipantPhoto, setSelectedParticipantPhoto] = useState(null);
 
   // Import Validation State
   const [importPreviewData, setImportPreviewData] = useState(null);
@@ -622,7 +623,11 @@ export default function Participants() {
                     <TableRow key={participant.id}>
                       <TableCell>
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-full bg-slate-100 overflow-hidden shrink-0 border">
+                          <div 
+                            className="w-10 h-10 rounded-full bg-slate-100 overflow-hidden shrink-0 border cursor-pointer hover:ring-2 hover:ring-emerald-500 transition-all"
+                            onClick={() => setSelectedParticipantPhoto(participant)}
+                            title="Lihat Profil"
+                          >
                             {participant.photoUrl ? (
                               <img src={participant.photoUrl} alt="" className="w-full h-full object-cover" />
                             ) : (
@@ -720,6 +725,41 @@ export default function Participants() {
           )}
         </CardContent>
       </Card>
+
+      {/* Photo Popup Dialog */}
+      <Dialog open={!!selectedParticipantPhoto} onOpenChange={(open) => !open && setSelectedParticipantPhoto(null)}>
+        <DialogContent className="max-w-sm sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Profil Peserta</DialogTitle>
+          </DialogHeader>
+          {selectedParticipantPhoto && (
+            <div className="flex flex-col items-center gap-4 py-4">
+              <div className="w-40 h-40 rounded-2xl bg-slate-100 overflow-hidden border shadow-lg">
+                {selectedParticipantPhoto.photoUrl ? (
+                  <img src={selectedParticipantPhoto.photoUrl} alt={selectedParticipantPhoto.name} className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-slate-300">
+                    <Users size={64} />
+                  </div>
+                )}
+              </div>
+              <div className="text-center w-full bg-slate-50 p-4 rounded-xl border border-slate-100">
+                <h3 className="font-bold text-xl text-slate-900 mb-1">{selectedParticipantPhoto.name}</h3>
+                <p className="text-slate-600 font-medium">{selectedParticipantPhoto.position}</p>
+                <div className="mt-2 text-sm text-slate-500 flex flex-col gap-1">
+                  <div><span className="font-semibold text-slate-700">MPW:</span> {selectedParticipantPhoto.mpw || '-'}</div>
+                  <div><span className="font-semibold text-slate-700">MPC:</span> {selectedParticipantPhoto.mpc || '-'}</div>
+                  {selectedParticipantPhoto.qrCode && (
+                    <div className="mt-3 pt-3 border-t border-slate-200">
+                      <span className="font-semibold text-slate-700">ID:</span> <code className="bg-white px-2 py-0.5 ml-1 rounded border text-xs">{selectedParticipantPhoto.qrCode}</code>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

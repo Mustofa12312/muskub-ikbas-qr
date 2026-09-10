@@ -629,13 +629,13 @@ function ParticipantCard({ participant }) {
         <div className="absolute -bottom-10 -right-10 w-32 h-32 bg-white/10 rounded-full blur-2xl"></div>
       </div>
       <div className="px-6 pb-8 pt-0 flex flex-col items-center -mt-14 relative z-10">
-        <div className="relative mb-5">
-          <div className="w-28 h-28 rounded-full border-4 border-white dark:border-slate-800 bg-slate-50 dark:bg-slate-700 overflow-hidden shadow-xl">
+        <div className="relative mb-5 mt-4">
+          <div className="w-36 h-36 sm:w-40 sm:h-40 rounded-2xl border-4 border-white dark:border-slate-800 bg-slate-50 dark:bg-slate-700 overflow-hidden shadow-2xl">
             {participant.photoUrl ? (
               <img src={participant.photoUrl} alt={participant.name} className="w-full h-full object-cover" />
             ) : (
               <div className="w-full h-full flex items-center justify-center text-slate-300 dark:text-slate-500">
-                <Users size={48} />
+                <Users size={64} />
               </div>
             )}
           </div>

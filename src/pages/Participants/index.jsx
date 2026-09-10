@@ -25,6 +25,7 @@ export default function Participants() {
   const [search, setSearch] = useState('');
   const [filterMpw, setFilterMpw] = useState('all');
   const [filterPosition, setFilterPosition] = useState('all');
+  const [filterPhoto, setFilterPhoto] = useState('all');
   
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
@@ -342,7 +343,11 @@ export default function Participants() {
     const matchesMpw = filterMpw === 'all' || p.mpw === filterMpw;
     const matchesPosition = filterPosition === 'all' || p.position === filterPosition;
     
-    return matchesSearch && matchesMpw && matchesPosition;
+    let matchesPhoto = true;
+    if (filterPhoto === 'has_photo') matchesPhoto = !!p.photoUrl;
+    if (filterPhoto === 'no_photo') matchesPhoto = !p.photoUrl;
+    
+    return matchesSearch && matchesMpw && matchesPosition && matchesPhoto;
   });
 
   const uniqueMpw = [...new Set(participants.map(p => p.mpw))].filter(Boolean).sort();
@@ -358,7 +363,7 @@ export default function Participants() {
   // Reset page when search or filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [search, filterMpw, filterPosition]);
+  }, [search, filterMpw, filterPosition, filterPhoto]);
 
   return (
     <div className="space-y-6">
@@ -559,6 +564,16 @@ export default function Participants() {
             </div>
             
             <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
+              <select 
+                className="h-9 px-3 rounded-md border border-slate-200 bg-white text-sm w-full sm:w-auto"
+                value={filterPhoto}
+                onChange={(e) => setFilterPhoto(e.target.value)}
+              >
+                <option value="all">Status Foto (Semua)</option>
+                <option value="has_photo">Sudah Ada Foto</option>
+                <option value="no_photo">Belum Ada Foto</option>
+              </select>
+              
               <select 
                 className="h-9 px-3 rounded-md border border-slate-200 bg-white text-sm w-full sm:w-auto"
                 value={filterMpw}

@@ -1,8 +1,7 @@
 import { collection, doc, getDocs, getDoc, addDoc, updateDoc, deleteDoc, query, where, orderBy, writeBatch } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
-import { db, storage } from './firebase';
+import { db } from './firebase';
 import { auditService } from './auditService';
-import { compressImage } from '../utils/imageUtils';
+import { compressImageToBase64 } from '../utils/imageUtils';
 
 const PARTICIPANTS_COLLECTION = 'participants';
 const isMockMode = import.meta.env.VITE_FIREBASE_API_KEY === "YOUR_API_KEY" || !import.meta.env.VITE_FIREBASE_API_KEY;
@@ -40,7 +39,7 @@ export const participantService = {
       const newParticipant = {
         ...dataToSave,
         id,
-        photoUrl: '', // Mock doesn't support real storage upload easily without DataURL
+        photoUrl: '',
         qrCode,
         createdAt: new Date().toISOString()
       };
@@ -60,14 +59,15 @@ export const participantService = {
       }
     }
 
+    // Compress photo to Base64 and store directly in Firestore
     if (photoFile) {
-      photoUrl = await this.uploadPhoto(eventId, photoFile);
+      photoUrl = await compressImageToBase64(photoFile);
     }
 
     const newParticipant = {
       ...dataToSave,
       photoUrl,
-      qrCode: dataToSave.qrCode || '', // Temporary, will update below if empty
+      qrCode: dataToSave.qrCode || '',
       createdAt: new Date().toISOString()
     };
 
@@ -174,16 +174,10 @@ export const participantService = {
 
     const { eventId, ...dataToSave } = participantData;
     let photoUrl = dataToSave.photoUrl || oldPhotoUrl;
+    
+    // Compress photo to Base64 and store directly in Firestore
     if (photoFile) {
-      photoUrl = await this.uploadPhoto(eventId, photoFile);
-      if (oldPhotoUrl && typeof oldPhotoUrl === 'string' && oldPhotoUrl.includes('firebasestorage.googleapis.com')) {
-        try {
-          const oldRef = ref(storage, oldPhotoUrl);
-          await deleteObject(oldRef);
-        } catch (error) {
-          console.warn("Gagal menghapus foto lama:", error);
-        }
-      }
+      photoUrl = await compressImageToBase64(photoFile);
     }
 
     const docRef = doc(db, PARTICIPANTS_COLLECTION, id);
@@ -209,7 +203,6 @@ export const participantService = {
     const docSnap = await getDoc(doc(db, PARTICIPANTS_COLLECTION, id));
     if (docSnap.exists()) {
       const pData = docSnap.data();
-      // Note: We don't delete the photo in soft-delete
       await updateDoc(doc(db, PARTICIPANTS_COLLECTION, id), {
         isDeleted: true,
         deletedAt: new Date().toISOString()
@@ -217,20 +210,6 @@ export const participantService = {
       auditService.logAction('DELETE', 'Peserta', `Mengarsipkan data peserta: ${pData.name}`);
     }
   },
-
-  async uploadPhoto(eventId, file) {
-    if (isMockMode) return '';
-    
-    // Compress the image to WebP with max 800x800 resolution to save storage
-    const compressedFile = await compressImage(file);
-    
-    const fileExt = 'webp'; // Since compressImage outputs webp
-    const fileName = `participants/${eventId}/${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
-    const storageRef = ref(storage, fileName);
-    
-    await uploadBytes(storageRef, compressedFile);
-    return await getDownloadURL(storageRef);
-  }
 };
 
 // Export mockParticipants so attendanceService can access it in mock mode

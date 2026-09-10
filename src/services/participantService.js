@@ -32,26 +32,27 @@ export const participantService = {
 
   async createParticipant(participantData, photoFile) {
     let photoUrl = '';
+    const { eventId, ...dataToSave } = participantData;
     
     if (isMockMode) {
       const id = Math.random().toString(36).substr(2, 9);
-      const qrCode = participantData.qrCode || `MUSKUB4-PST-${id}`;
+      const qrCode = dataToSave.qrCode || `MUSKUB4-PST-${id}`;
       const newParticipant = {
-        ...participantData,
+        ...dataToSave,
         id,
         photoUrl: '', // Mock doesn't support real storage upload easily without DataURL
         qrCode,
         createdAt: new Date().toISOString()
       };
       mockParticipants.push(newParticipant);
-      auditService.logAction('CREATE', 'Peserta', `Mendaftarkan peserta baru: ${participantData.name}`);
+      auditService.logAction('CREATE', 'Peserta', `Mendaftarkan peserta baru: ${dataToSave.name}`);
       return newParticipant;
     }
 
-    if (participantData.qrCode) {
+    if (dataToSave.qrCode) {
       const q = query(
         collection(db, PARTICIPANTS_COLLECTION),
-        where('qrCode', '==', participantData.qrCode)
+        where('qrCode', '==', dataToSave.qrCode)
       );
       const snapshot = await getDocs(q);
       if (!snapshot.empty) {
@@ -60,26 +61,26 @@ export const participantService = {
     }
 
     if (photoFile) {
-      photoUrl = await this.uploadPhoto(participantData.eventId, photoFile);
+      photoUrl = await this.uploadPhoto(eventId, photoFile);
     }
 
     const newParticipant = {
-      ...participantData,
+      ...dataToSave,
       photoUrl,
-      qrCode: participantData.qrCode || '', // Temporary, will update below if empty
+      qrCode: dataToSave.qrCode || '', // Temporary, will update below if empty
       createdAt: new Date().toISOString()
     };
 
     const docRef = await addDoc(collection(db, PARTICIPANTS_COLLECTION), newParticipant);
     
-    const qrCode = participantData.qrCode || `MUSKUB4-PST-${docRef.id}`;
-    if (!participantData.qrCode) {
+    const qrCode = dataToSave.qrCode || `MUSKUB4-PST-${docRef.id}`;
+    if (!dataToSave.qrCode) {
       await updateDoc(docRef, { qrCode });
     }
     
     newParticipant.qrCode = qrCode;
 
-    auditService.logAction('CREATE', 'Peserta', `Mendaftarkan peserta baru: ${participantData.name}`);
+    auditService.logAction('CREATE', 'Peserta', `Mendaftarkan peserta baru: ${dataToSave.name}`);
     return { id: docRef.id, ...newParticipant, qrCode };
   },
 
@@ -171,9 +172,10 @@ export const participantService = {
       return;
     }
 
-    let photoUrl = participantData.photoUrl || oldPhotoUrl;
+    const { eventId, ...dataToSave } = participantData;
+    let photoUrl = dataToSave.photoUrl || oldPhotoUrl;
     if (photoFile) {
-      photoUrl = await this.uploadPhoto(participantData.eventId, photoFile);
+      photoUrl = await this.uploadPhoto(eventId, photoFile);
       if (oldPhotoUrl && typeof oldPhotoUrl === 'string' && oldPhotoUrl.includes('firebasestorage.googleapis.com')) {
         try {
           const oldRef = ref(storage, oldPhotoUrl);
@@ -186,7 +188,7 @@ export const participantService = {
 
     const docRef = doc(db, PARTICIPANTS_COLLECTION, id);
     await updateDoc(docRef, {
-      ...participantData,
+      ...dataToSave,
       photoUrl,
       updatedAt: new Date().toISOString()
     });

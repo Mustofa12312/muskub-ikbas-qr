@@ -84,18 +84,20 @@ export default function Participants() {
     
     setIsSubmitting(true);
     try {
+      const eventId = activeEvent?.id || '';
       if (editingId) {
         const participantToEdit = participants.find(p => p.id === editingId);
         await participantService.updateParticipant(
           editingId,
-          { ...formData },
+          { ...formData, eventId },
           photoFile,
           participantToEdit?.photoUrl
         );
         toast.success('Data peserta berhasil diperbarui');
       } else {
         await participantService.createParticipant({
-          ...formData
+          ...formData,
+          eventId
         }, photoFile);
         toast.success('Peserta berhasil ditambahkan');
       }

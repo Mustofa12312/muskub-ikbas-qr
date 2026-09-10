@@ -409,7 +409,21 @@ export default function Scanner() {
                     </>
                   ) : (
                     <>
-                      <div className="w-full aspect-square rounded-3xl overflow-hidden bg-slate-900 mb-8 relative shadow-lg flex items-center justify-center">
+                      <div className="w-full aspect-square rounded-3xl overflow-hidden bg-slate-900 mb-8 relative shadow-lg flex items-center justify-center" ref={(el) => {
+                        // Detect when the camera video is actually playing
+                        if (el && !isCameraReady) {
+                          const checkVideo = () => {
+                            const video = el.querySelector('video');
+                            if (video && video.readyState >= 2) {
+                              setIsCameraReady(true);
+                            } else {
+                              setTimeout(checkVideo, 300);
+                            }
+                          };
+                          // Start checking after a short delay to let the component mount
+                          setTimeout(checkVideo, 500);
+                        }
+                      }}>
                         {!isCameraReady && (
                           <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-900 text-white z-20">
                             <Loader2 className="w-10 h-10 animate-spin text-emerald-500 mb-4" />
@@ -420,7 +434,9 @@ export default function Scanner() {
                         <QrReader
                           onScan={(codes) => {
                             handleCameraScan(codes);
-                            setIsCameraReady(true);
+                          }}
+                          onError={(error) => {
+                            console.error('QR Scanner Error:', error);
                           }}
                           components={{
                             audio: false,
@@ -428,6 +444,9 @@ export default function Scanner() {
                             torch: false,
                             zoom: false,
                             finder: false,
+                          }}
+                          constraints={{
+                            facingMode: 'environment',
                           }}
                         />
                         <div className="absolute inset-0 border-[16px] border-black/40 z-10 pointer-events-none">

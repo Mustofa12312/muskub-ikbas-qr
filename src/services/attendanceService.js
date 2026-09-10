@@ -321,7 +321,8 @@ export const attendanceService = {
         id: doc.id,
         ...data,
         participantName: p?.name || 'Unknown',
-        delegation: p?.delegation || 'Unknown'
+        mpw: p?.mpw || 'Unknown',
+        mpc: p?.mpc || 'Unknown'
       };
     });
   },

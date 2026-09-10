@@ -621,7 +621,7 @@ function ParticipantCard({ participant }) {
           </div>
         </div>
         <h3 className="text-xl font-extrabold text-slate-900 dark:text-white uppercase text-center mb-1.5 tracking-tight line-clamp-2">{participant.name}</h3>
-        <p className="text-slate-500 dark:text-slate-400 font-medium text-center text-sm line-clamp-1">{participant.delegation}</p>
+        <p className="text-slate-500 dark:text-slate-400 font-medium text-center text-sm line-clamp-1">{participant.mpw} - {participant.mpc}</p>
         <div className="mt-5 px-5 py-1.5 bg-emerald-50 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 text-xs font-bold rounded-full uppercase tracking-wider border border-emerald-100 dark:border-emerald-800 shadow-sm">
           {participant.position}
         </div>

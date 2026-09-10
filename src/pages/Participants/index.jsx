@@ -27,7 +27,7 @@ export default function Participants() {
   const [participants, setParticipants] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [filterDelegation, setFilterDelegation] = useState('all');
+  const [filterMpw, setFilterMpw] = useState('all');
   const [filterPosition, setFilterPosition] = useState('all');
   
   // Pagination State
@@ -38,7 +38,7 @@ export default function Participants() {
   const [isOpen, setIsOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [formData, setFormData] = useState({ name: '', delegation: '', position: '', qrCode: '' });
+  const [formData, setFormData] = useState({ name: '', mpw: '', mpc: '', position: '', qrCode: '' });
   const [photoFile, setPhotoFile] = useState(null);
 
   // Import Validation State
@@ -71,7 +71,7 @@ export default function Participants() {
   const closeDialog = () => {
     setIsOpen(false);
     setEditingId(null);
-    setFormData({ name: '', delegation: '', position: '', qrCode: '' });
+    setFormData({ name: '', mpw: '', mpc: '', position: '', qrCode: '' });
     setPhotoFile(null);
   };
 
@@ -79,7 +79,8 @@ export default function Participants() {
     setEditingId(participant.id);
     setFormData({
       name: participant.name,
-      delegation: participant.delegation,
+      mpw: participant.mpw,
+      mpc: participant.mpc,
       position: participant.position,
       qrCode: participant.qrCode || ''
     });
@@ -165,7 +166,7 @@ export default function Participants() {
       const errorRows = [];
 
       importedData.forEach((row, index) => {
-        if (!row.Nama || !row.Delegasi || !row.Jabatan) {
+        if (!row.Nama || !row.Jabatan || !row.MPW || !row['MPC/MPCI']) {
           errorRows.push({ rowNumber: index + 2, ...row });
         } else {
           validRows.push(row);
@@ -192,7 +193,8 @@ export default function Participants() {
       const customId = row.ID || row['ID (Opsional)'] || row.id || row.Id;
       return {
         name: row.Nama,
-        delegation: row.Delegasi,
+        mpw: row.MPW,
+        mpc: row['MPC/MPCI'],
         position: row.Jabatan,
         qrCode: customId ? String(customId) : undefined
       };
@@ -220,14 +222,16 @@ export default function Participants() {
       {
         'ID (Opsional)': 'ID-001',
         'Nama': 'Ahmad Dahlan',
-        'Delegasi': 'PC Pamekasan',
-        'Jabatan': 'Ketua'
+        'Jabatan': 'Ketua',
+        'MPW': 'Jawa Timur',
+        'MPC/MPCI': 'Pamekasan'
       },
       {
         'ID (Opsional)': 'ID-002',
         'Nama': 'Siti Aminah',
-        'Delegasi': 'PC Sampang',
-        'Jabatan': 'Anggota'
+        'Jabatan': 'Anggota',
+        'MPW': 'Jawa Timur',
+        'MPC/MPCI': 'Sampang'
       }
     ];
     exportToExcel(templateData, 'Template_Import_Peserta');
@@ -294,8 +298,9 @@ export default function Participants() {
     const exportData = filteredParticipants.map(p => ({
       'ID Peserta': p.id,
       'Nama': p.name,
-      'Delegasi': p.delegation,
       'Jabatan': p.position,
+      'MPW': p.mpw,
+      'MPC/MPCI': p.mpc,
       'Status': p.status,
       'Waktu Hadir': p.status === 'HADIR' ? p.attendanceTime : '-'
     }));
@@ -307,8 +312,9 @@ export default function Participants() {
     const exportData = filteredParticipants.map(p => ({
       'ID Peserta': p.id,
       'Nama': p.name,
-      'Delegasi': p.delegation,
       'Jabatan': p.position,
+      'MPW': p.mpw,
+      'MPC/MPCI': p.mpc,
       'Status': p.status,
       'Waktu Hadir': p.status === 'HADIR' ? p.attendanceTime : '-'
     }));
@@ -349,15 +355,16 @@ export default function Participants() {
   // Filter participants
   const filteredParticipants = participants.filter(p => {
     const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase()) || 
-                          p.delegation.toLowerCase().includes(search.toLowerCase()) ||
+                          (p.mpw && p.mpw.toLowerCase().includes(search.toLowerCase())) ||
+                          (p.mpc && p.mpc.toLowerCase().includes(search.toLowerCase())) ||
                           (p.qrCode && p.qrCode.toLowerCase().includes(search.toLowerCase()));
-    const matchesDelegation = filterDelegation === 'all' || p.delegation === filterDelegation;
+    const matchesMpw = filterMpw === 'all' || p.mpw === filterMpw;
     const matchesPosition = filterPosition === 'all' || p.position === filterPosition;
     
-    return matchesSearch && matchesDelegation && matchesPosition;
+    return matchesSearch && matchesMpw && matchesPosition;
   });
 
-  const uniqueDelegations = [...new Set(participants.map(p => p.delegation))].filter(Boolean).sort();
+  const uniqueMpw = [...new Set(participants.map(p => p.mpw))].filter(Boolean).sort();
   const uniquePositions = [...new Set(participants.map(p => p.position))].filter(Boolean).sort();
 
   // Pagination Logic
@@ -370,7 +377,7 @@ export default function Participants() {
   // Reset page when search or filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [search, filterDelegation, filterPosition]);
+  }, [search, filterMpw, filterPosition]);
 
   if (!activeEvent) {
     return <div className="p-8 text-center text-slate-500">Pilih atau buat acara terlebih dahulu di menu Acara.</div>;
@@ -438,7 +445,7 @@ export default function Participants() {
           
           <Dialog open={isOpen} onOpenChange={(open) => open ? setIsOpen(true) : closeDialog()}>
             <DialogTrigger asChild>
-              <Button className="bg-emerald-600 hover:bg-emerald-700" onClick={() => { setEditingId(null); setFormData({ name: '', delegation: '', position: '', qrCode: '' }); }}>
+              <Button className="bg-emerald-600 hover:bg-emerald-700" onClick={() => { setEditingId(null); setFormData({ name: '', mpw: '', mpc: '', position: '', qrCode: '' }); }}>
                 <Plus className="mr-2 h-4 w-4" /> Tambah
               </Button>
             </DialogTrigger>
@@ -457,12 +464,22 @@ export default function Participants() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="delegation">Delegasi</Label>
+                  <Label htmlFor="mpw">MPW</Label>
                   <Input 
-                    id="delegation" 
-                    value={formData.delegation} 
-                    onChange={e => setFormData({...formData, delegation: e.target.value})} 
-                    placeholder="PC IKBAS Panyeppen"
+                    id="mpw" 
+                    value={formData.mpw} 
+                    onChange={e => setFormData({...formData, mpw: e.target.value})} 
+                    placeholder="Jawa Timur"
+                    required 
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="mpc">MPC/MPCI</Label>
+                  <Input 
+                    id="mpc" 
+                    value={formData.mpc} 
+                    onChange={e => setFormData({...formData, mpc: e.target.value})} 
+                    placeholder="Pamekasan"
                     required 
                   />
                 </div>
@@ -529,7 +546,7 @@ export default function Participants() {
                       <h4 className="text-sm font-semibold text-red-800 mb-2">Data dengan masalah (akan dilewati):</h4>
                       <div className="max-h-40 overflow-y-auto text-sm text-red-700 space-y-1">
                         {importPreviewData.errorRows.map((err, i) => (
-                          <div key={i}>Baris {err.rowNumber}: Nama/Delegasi/Jabatan kosong ({err.Nama || '?'})</div>
+                          <div key={i}>Baris {err.rowNumber}: Nama/Jabatan/MPW/MPC kosong ({err.Nama || '?'})</div>
                         ))}
                       </div>
                     </div>
@@ -561,7 +578,7 @@ export default function Participants() {
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-400" />
               <Input
                 type="text"
-                placeholder="Cari nama, delegasi, atau QR..."
+                placeholder="Cari nama, mpw, mpc, atau QR..."
                 className="pl-9"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
@@ -571,11 +588,11 @@ export default function Participants() {
             <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
               <select 
                 className="h-9 px-3 rounded-md border border-slate-200 bg-white text-sm w-full sm:w-auto"
-                value={filterDelegation}
-                onChange={(e) => setFilterDelegation(e.target.value)}
+                value={filterMpw}
+                onChange={(e) => setFilterMpw(e.target.value)}
               >
-                <option value="all">Semua Delegasi</option>
-                {uniqueDelegations.map(del => <option key={del} value={del}>{del}</option>)}
+                <option value="all">Semua MPW</option>
+                {uniqueMpw.map(del => <option key={del} value={del}>{del}</option>)}
               </select>
               
               <select 
@@ -629,7 +646,7 @@ export default function Participants() {
                           </div>
                           <div>
                             <div className="font-medium text-slate-900">{participant.name}</div>
-                            <div className="text-xs text-slate-500">{participant.delegation}</div>
+                            <div className="text-xs text-slate-500">{participant.mpw} - {participant.mpc}</div>
                           </div>
                         </div>
                       </TableCell>

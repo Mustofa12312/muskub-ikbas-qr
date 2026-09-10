@@ -15,7 +15,7 @@ export default function Dashboard() {
   const [stats, setStats] = useState({ total: 0, present: 0, absent: 0, percentage: 0 });
   const [recentScans, setRecentScans] = useState([]);
   const [chartData, setChartData] = useState([]);
-  const [delegationStats, setDelegationStats] = useState([]);
+  const [mpwStats, setMpwStats] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedSessionId, setSelectedSessionId] = useState('main');
 
@@ -57,30 +57,25 @@ export default function Dashboard() {
           }));
           setChartData(chartFormatted);
           
-          // Process delegation stats
-          const delMap = {};
-          
-          // Get set of present IDs for easy lookup
-          const presentIds = new Set(allPresent.map(p => p.id));
+          // Process MPW stats
+          const mpwMap = {};
           
           if (allParticipants) {
             allParticipants.forEach(p => {
-              const delName = p.delegation || 'Tanpa Delegasi';
-              if (!delMap[delName]) {
-                delMap[delName] = { name: delName, total: 0, present: 0 };
-              }
-              delMap[delName].total += 1;
-              if (presentIds.has(p.id)) {
-                delMap[delName].present += 1;
-              }
-            });
-            
-            const delArray = Object.values(delMap).map(d => ({
-              ...d,
-              percentage: d.total > 0 ? Math.round((d.present / d.total) * 100) : 0
-            })).sort((a, b) => b.total - a.total); // Sort by total members descending
-            
-            setDelegationStats(delArray);
+            const delName = p.mpw || 'Tanpa MPW';
+            if (!mpwMap[delName]) mpwMap[delName] = { total: 0, present: 0 };
+            mpwMap[delName].total++;
+            if (p.status === 'HADIR') mpwMap[delName].present++;
+          });
+          
+          const delArray = Object.keys(mpwMap).map(key => ({
+            name: key,
+            total: mpwMap[key].total,
+            present: mpwMap[key].present,
+            percentage: Math.round((mpwMap[key].present / mpwMap[key].total) * 100)
+          })).sort((a, b) => b.present - a.present);
+          
+          setMpwStats(delArray);
           }
 
           setLoading(false);
@@ -213,7 +208,7 @@ export default function Dashboard() {
                       </div>
                       <div>
                         <p className="text-sm font-medium leading-none">{scan.name}</p>
-                        <p className="text-xs text-slate-500 mt-1">{scan.delegation} • {scan.position}</p>
+                        <p className="text-xs text-slate-500 mt-1">{scan.mpw} - {scan.mpc} • {scan.position}</p>
                       </div>
                     </div>
                     <div className="text-right">
@@ -270,46 +265,41 @@ export default function Dashboard() {
         </Card>
       </div>
       
-      {/* Delegation Stats Section */}
+      {/* MPW Stats Section */}
       <div className="mt-8">
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Users className="h-5 w-5 text-indigo-500" />
-              Statistik Kehadiran Delegasi
+              Statistik Kehadiran MPW
             </CardTitle>
           </CardHeader>
           <CardContent>
             {loading ? (
               <Skeleton className="h-[200px] w-full" />
-            ) : delegationStats.length > 0 ? (
-              <div className="overflow-x-auto rounded-md border">
+            ) : mpwStats.length > 0 ? (
+              <div className="overflow-x-auto">
                 <table className="w-full text-sm text-left">
-                  <thead className="text-xs text-slate-700 bg-slate-50 border-b">
+                  <thead className="text-xs text-slate-500 uppercase bg-slate-50 border-b border-slate-100">
                     <tr>
-                      <th className="px-4 py-3 font-medium">Nama Delegasi</th>
-                      <th className="px-4 py-3 font-medium text-right">Total Peserta</th>
-                      <th className="px-4 py-3 font-medium text-right">Hadir</th>
-                      <th className="px-4 py-3 font-medium text-right">Belum Hadir</th>
-                      <th className="px-4 py-3 font-medium">Persentase</th>
+                      <th className="px-4 py-3 font-medium">Nama MPW</th>
+                      <th className="px-4 py-3 font-medium text-center">Hadir</th>
+                      <th className="px-4 py-3 font-medium text-center">Total</th>
+                      <th className="px-4 py-3 font-medium w-1/3">Persentase</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {delegationStats.map((del, idx) => (
-                      <tr key={idx} className="border-b last:border-0 hover:bg-slate-50">
-                        <td className="px-4 py-3 font-medium text-slate-900">{del.name}</td>
-                        <td className="px-4 py-3 text-right">{del.total}</td>
-                        <td className="px-4 py-3 text-right text-emerald-600 font-medium">{del.present}</td>
-                        <td className="px-4 py-3 text-right text-red-500">{del.total - del.present}</td>
+                    {mpwStats.map((del, idx) => (
+                      <tr key={idx} className="border-b border-slate-50 hover:bg-slate-50/50">
+                        <td className="px-4 py-3 font-medium text-slate-700">{del.name}</td>
+                        <td className="px-4 py-3 text-center text-emerald-600 font-medium">{del.present}</td>
+                        <td className="px-4 py-3 text-center text-slate-500">{del.total}</td>
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-2">
-                            <div className="w-full bg-slate-200 rounded-full h-2">
-                              <div 
-                                className={`h-2 rounded-full ${del.percentage >= 80 ? 'bg-emerald-500' : del.percentage >= 50 ? 'bg-amber-400' : 'bg-red-400'}`} 
-                                style={{ width: `${del.percentage}%` }}
-                              ></div>
+                            <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                              <div className="bg-blue-500 h-1.5 rounded-full" style={{ width: `${del.percentage}%` }}></div>
                             </div>
-                            <span className="text-xs font-medium text-slate-500 w-8">{del.percentage}%</span>
+                            <span className="text-xs font-medium text-slate-600 w-8">{del.percentage}%</span>
                           </div>
                         </td>
                       </tr>
@@ -318,8 +308,8 @@ export default function Dashboard() {
                 </table>
               </div>
             ) : (
-              <div className="py-12 text-center text-slate-500 text-sm border-dashed border-2 border-slate-100 rounded-xl">
-                Belum ada data delegasi.
+              <div className="py-12 text-center text-slate-500">
+                Belum ada data MPW.
               </div>
             )}
           </CardContent>

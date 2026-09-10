@@ -47,7 +47,7 @@ export const generateCertificate = (participant, eventName) => {
   doc.setFontSize(14);
   doc.setFont('helvetica', 'normal');
   
-  const bodyText = `Sebagai ${participant.position} dari ${participant.delegation} yang telah\nberpartisipasi secara aktif dalam kegiatan:`;
+  const bodyText = `Sebagai ${participant.position} dari ${participant.mpw} - ${participant.mpc} yang telah\nberpartisipasi secara aktif dalam kegiatan:`;
   doc.text(bodyText, width / 2, 120, null, null, 'center');
 
   // Event Name

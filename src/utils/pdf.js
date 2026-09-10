@@ -28,7 +28,7 @@ export const exportToPDF = (participants, eventName, stats) => {
   const tableData = participants.map((p, index) => [
     index + 1,
     p.name,
-    p.delegation,
+    `${p.mpw} - ${p.mpc}`,
     p.position,
     p.status,
     p.status === 'HADIR' ? p.attendanceTime : '-'
@@ -37,7 +37,7 @@ export const exportToPDF = (participants, eventName, stats) => {
   // Render Table
   doc.autoTable({
     startY: 75,
-    head: [['No', 'Nama', 'Delegasi', 'Jabatan', 'Status', 'Jam']],
+    head: [['No', 'Nama', 'MPW - MPC/MPCI', 'Jabatan', 'Status', 'Jam']],
     body: tableData,
     theme: 'grid',
     headStyles: { fillColor: [16, 185, 129] }, // Emerald 500

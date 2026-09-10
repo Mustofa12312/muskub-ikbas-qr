@@ -85,7 +85,8 @@ export default function Attendance() {
     const exportData = filteredParticipants.map(p => ({
       'ID Peserta': p.id,
       'Nama': p.name,
-      'Delegasi': p.delegation,
+      'MPW': p.mpw,
+      'MPC/MPCI': p.mpc,
       'Jabatan': p.position,
       'Status': p.status,
       'Waktu Hadir': p.status === 'HADIR' ? p.attendanceTime : '-'
@@ -98,7 +99,8 @@ export default function Attendance() {
     const exportData = filteredParticipants.map(p => ({
       'ID Peserta': p.id,
       'Nama': p.name,
-      'Delegasi': p.delegation,
+      'MPW': p.mpw,
+      'MPC/MPCI': p.mpc,
       'Jabatan': p.position,
       'Status': p.status,
       'Waktu Hadir': p.status === 'HADIR' ? p.attendanceTime : '-'
@@ -129,7 +131,8 @@ export default function Attendance() {
 
   const filteredParticipants = processedParticipants.filter(p => {
     const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase()) || 
-                          p.delegation.toLowerCase().includes(search.toLowerCase());
+                          (p.mpw && p.mpw.toLowerCase().includes(search.toLowerCase())) ||
+                          (p.mpc && p.mpc.toLowerCase().includes(search.toLowerCase()));
     
     if (statusFilter === 'hadir') return matchesSearch && p.status === 'HADIR';
     if (statusFilter === 'belum') return matchesSearch && p.status !== 'HADIR';
@@ -223,7 +226,7 @@ export default function Attendance() {
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-400" />
               <Input
                 type="text"
-                placeholder="Cari nama atau delegasi..."
+                placeholder="Cari nama, mpw, atau mpc..."
                 className="pl-9"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
@@ -263,7 +266,7 @@ export default function Attendance() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Peserta</TableHead>
-                  <TableHead>Delegasi</TableHead>
+                  <TableHead>MPW - MPC/MPCI</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Waktu Hadir</TableHead>
                   <TableHead className="text-right">Aksi</TableHead>
@@ -298,7 +301,7 @@ export default function Attendance() {
                           </div>
                         </div>
                       </TableCell>
-                      <TableCell className="text-slate-600">{participant.delegation}</TableCell>
+                      <TableCell className="text-slate-600">{participant.mpw} - {participant.mpc}</TableCell>
                       <TableCell>
                         {participant.status === 'HADIR' ? (
                           <Badge className="bg-emerald-100 text-emerald-800 hover:bg-emerald-100 border-emerald-200">Hadir</Badge>
@@ -368,7 +371,7 @@ export default function Attendance() {
             <div className="py-4 space-y-4">
               <div className="p-3 bg-slate-50 rounded-lg border">
                 <div className="font-medium text-slate-900">{selectedParticipant.name}</div>
-                <div className="text-sm text-slate-500">{selectedParticipant.delegation}</div>
+                <div className="text-sm text-slate-500">{selectedParticipant.mpw} - {selectedParticipant.mpc}</div>
                 <div className="text-xs mt-1 text-slate-400">Status saat ini: {selectedParticipant.status}</div>
               </div>
 

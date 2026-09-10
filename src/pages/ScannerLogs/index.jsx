@@ -67,7 +67,8 @@ export default function ScannerLogs() {
       'ID Log': log.id,
       'Waktu Scan': formatDate(log.timestamp),
       'Nama Peserta': log.participantName,
-      'Delegasi': log.delegation,
+      'MPW': log.mpw,
+      'MPC/MPCI': log.mpc,
       'Aktivitas': log.action === 'in' ? 'Check-in' : log.action === 'out' ? 'Check-out' : log.action,
       'Sesi': log.sessionId || '-',
       'ID Scanner': log.scannerId || '-'
@@ -119,7 +120,7 @@ export default function ScannerLogs() {
               <TableRow>
                 <TableHead>Waktu Scan</TableHead>
                 <TableHead>Peserta</TableHead>
-                <TableHead>Delegasi</TableHead>
+                <TableHead>MPW - MPC/MPCI</TableHead>
                 <TableHead>Aktivitas</TableHead>
                 <TableHead>ID Scanner</TableHead>
               </TableRow>
@@ -153,7 +154,7 @@ export default function ScannerLogs() {
                       </div>
                     </TableCell>
                     <TableCell className="text-slate-600">
-                      {log.delegation}
+                      {log.mpw} - {log.mpc}
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-1.5">

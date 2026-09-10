@@ -79,7 +79,7 @@ export const generateIDCards = async (participants, eventName) => {
     doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(100, 116, 139); // Slate 500
-    doc.text(p.delegation, x + CARD_WIDTH / 2, y + 52, null, null, 'center');
+    doc.text(`${p.mpw} - ${p.mpc}`, x + CARD_WIDTH / 2, y + 52, null, null, 'center');
 
     // Position Badge
     doc.setFillColor(241, 245, 249); // Slate 100
@@ -156,10 +156,7 @@ export const generateBulkQRCodes = async (participants, eventName) => {
         if (nameText.length > 20) nameText = nameText.substring(0, 18) + '...';
         doc.text(nameText, x + QR_SIZE / 2, y + QR_SIZE + 4, null, null, 'center');
         
-        // Print Delegation
-        doc.setFontSize(6);
-        doc.setTextColor(100, 116, 139);
-        doc.text(p.delegation, x + QR_SIZE / 2, y + QR_SIZE + 8, null, null, 'center');
+        doc.text(`${p.mpw} - ${p.mpc}`, x + QR_SIZE / 2, y + QR_SIZE + 8, null, null, 'center');
 
         // Print Code
         doc.setFontSize(5);

@@ -8,8 +8,8 @@ const PARTICIPANTS_COLLECTION = 'participants';
 const isMockMode = import.meta.env.VITE_FIREBASE_API_KEY === "YOUR_API_KEY" || !import.meta.env.VITE_FIREBASE_API_KEY;
 
 let mockParticipants = [
-  { id: 'p1', eventId: '1', name: 'Ahmad Dahlan', delegation: 'PC Pamekasan', position: 'Ketua', status: 'BELUM HADIR', qrCode: 'MUSKUB4-PST-p1' },
-  { id: 'p2', eventId: '1', name: 'Siti Aminah', delegation: 'PC Sampang', position: 'Anggota', status: 'BELUM HADIR', qrCode: 'MUSKUB4-PST-p2' },
+  { id: 'p1', eventId: '1', name: 'Ahmad Dahlan', mpw: 'Jawa Timur', mpc: 'Pamekasan', position: 'Ketua', status: 'BELUM HADIR', qrCode: 'MUSKUB4-PST-p1' },
+  { id: 'p2', eventId: '1', name: 'Siti Aminah', mpw: 'Jawa Timur', mpc: 'Sampang', position: 'Anggota', status: 'BELUM HADIR', qrCode: 'MUSKUB4-PST-p2' },
 ];
 
 export const participantService = {
@@ -143,7 +143,8 @@ export const participantService = {
       
       const newParticipant = {
         name: p.name,
-        delegation: p.delegation,
+        mpw: p.mpw,
+        mpc: p.mpc,
         position: p.position,
         eventId,
         photoUrl: '',

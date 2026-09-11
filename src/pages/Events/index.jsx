@@ -15,6 +15,7 @@ import { Plus, Edit, Trash2, Calendar, CheckCircle, Clock } from 'lucide-react';
 export default function Events() {
   const { events, activeEvent, changeActiveEvent, reloadEvents, loading } = useEvent();
   const [isOpen, setIsOpen] = useState(false);
+  const [editingId, setEditingId] = useState(null);
   const [formData, setFormData] = useState({ 
     name: '', 
     date: '', 
@@ -26,6 +27,35 @@ export default function Events() {
     sessions: 'Sesi Pagi, Sesi Siang' 
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const resetForm = () => {
+    setFormData({ 
+      name: '', 
+      date: '', 
+      location: '', 
+      description: '', 
+      checkInStart: '', 
+      checkInEnd: '', 
+      hasSessions: false, 
+      sessions: 'Sesi Pagi, Sesi Siang' 
+    });
+    setEditingId(null);
+  };
+
+  const handleEditClick = (event) => {
+    setFormData({
+      name: event.name || '',
+      date: event.date || '',
+      location: event.location || '',
+      description: event.description || '',
+      checkInStart: event.checkInStart || '',
+      checkInEnd: event.checkInEnd || '',
+      hasSessions: event.hasSessions || false,
+      sessions: Array.isArray(event.sessions) ? event.sessions.join(', ') : (event.sessions || 'Sesi Pagi, Sesi Siang')
+    });
+    setEditingId(event.id);
+    setIsOpen(true);
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -39,22 +69,18 @@ export default function Events() {
         dataToSubmit.sessions = [];
       }
 
-      await eventService.createEvent(dataToSubmit);
-      toast.success('Acara berhasil dibuat');
+      if (editingId) {
+        await eventService.updateEvent(editingId, dataToSubmit);
+        toast.success('Acara berhasil diperbarui');
+      } else {
+        await eventService.createEvent(dataToSubmit);
+        toast.success('Acara berhasil dibuat');
+      }
       setIsOpen(false);
-      setFormData({ 
-        name: '', 
-        date: '', 
-        location: '', 
-        description: '', 
-        checkInStart: '', 
-        checkInEnd: '', 
-        hasSessions: false, 
-        sessions: 'Sesi Pagi, Sesi Siang' 
-      });
+      resetForm();
       reloadEvents();
     } catch (error) {
-      toast.error('Gagal membuat acara: ' + error.message);
+      toast.error(`Gagal ${editingId ? 'memperbarui' : 'membuat'} acara: ${error.message}`);
     } finally {
       setIsSubmitting(false);
     }
@@ -91,7 +117,10 @@ export default function Events() {
           <p className="text-slate-500">Kelola daftar acara dan sesi absensi</p>
         </div>
         
-        <Dialog open={isOpen} onOpenChange={setIsOpen}>
+        <Dialog open={isOpen} onOpenChange={(open) => {
+          setIsOpen(open);
+          if (!open) resetForm();
+        }}>
           <DialogTrigger asChild>
             <Button className="bg-emerald-600 hover:bg-emerald-700">
               <Plus className="mr-2 h-4 w-4" /> Tambah Acara
@@ -99,7 +128,7 @@ export default function Events() {
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Buat Acara Baru</DialogTitle>
+              <DialogTitle>{editingId ? 'Edit Acara' : 'Buat Acara Baru'}</DialogTitle>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
@@ -186,7 +215,7 @@ export default function Events() {
               )}
 
               <Button type="submit" className="w-full bg-emerald-600 hover:bg-emerald-700" disabled={isSubmitting}>
-                {isSubmitting ? 'Menyimpan...' : 'Simpan Acara'}
+                {isSubmitting ? 'Menyimpan...' : (editingId ? 'Simpan Perubahan' : 'Simpan Acara')}
               </Button>
             </form>
           </DialogContent>
@@ -250,6 +279,9 @@ export default function Events() {
                             <CheckCircle className="h-4 w-4 mr-1" /> Set Aktif
                           </Button>
                         )}
+                        <Button size="icon" variant="ghost" className="text-blue-500 hover:text-blue-700 hover:bg-blue-50" onClick={() => handleEditClick(event)}>
+                          <Edit className="h-4 w-4" />
+                        </Button>
                         <Button size="icon" variant="ghost" className="text-red-500 hover:text-red-700 hover:bg-red-50" onClick={() => handleDelete(event.id)}>
                           <Trash2 className="h-4 w-4" />
                         </Button>

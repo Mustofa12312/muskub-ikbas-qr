@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useEvent } from '../../context/EventContext';
 import { attendanceService } from '../../services/attendanceService';
 import { Card, CardContent } from '@/components/ui/card';
-import { Users, CheckCircle, AlertTriangle, XCircle, Search, Camera, Keyboard, ArrowLeft, Maximize, Minimize, Volume2, VolumeX, Loader2 } from 'lucide-react';
+import { Users, CheckCircle, AlertTriangle, XCircle, Search, Camera, Keyboard, ArrowLeft, Maximize, Minimize, Volume2, VolumeX, Loader2, Clock } from 'lucide-react';
 import { Scanner as QrReader } from '@yudiel/react-qr-scanner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -35,6 +35,60 @@ export default function Scanner() {
   
   // Ref for the hidden input used by USB Scanner
   const inputRef = useRef(null);
+
+  // Live clock (updates every second)
+  const [liveTime, setLiveTime] = useState(() => {
+    const now = new Date();
+    const local = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Jakarta' }));
+    return `${String(local.getHours()).padStart(2, '0')}:${String(local.getMinutes()).padStart(2, '0')}:${String(local.getSeconds()).padStart(2, '0')}`;
+  });
+
+  useEffect(() => {
+    const tick = setInterval(() => {
+      const now = new Date();
+      const local = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Jakarta' }));
+      setLiveTime(`${String(local.getHours()).padStart(2, '0')}:${String(local.getMinutes()).padStart(2, '0')}:${String(local.getSeconds()).padStart(2, '0')}`);
+    }, 1000);
+    return () => clearInterval(tick);
+  }, []);
+
+  // Compute whether current time is within the event's check-in window
+  const parseTimeToMinutes = (timeStr) => {
+    if (!timeStr || typeof timeStr !== 'string' || !timeStr.trim()) return null;
+    const parts = timeStr.trim().split(':');
+    if (parts.length < 2) return null;
+    const h = parseInt(parts[0], 10);
+    const m = parseInt(parts[1], 10);
+    if (isNaN(h) || isNaN(m)) return null;
+    return h * 60 + m;
+  };
+
+  const getTimeWindowStatus = () => {
+    if (!activeEvent) return 'no_event';
+    const startMins = parseTimeToMinutes(activeEvent.checkInStart);
+    const endMins = parseTimeToMinutes(activeEvent.checkInEnd);
+    if (startMins === null && endMins === null) return 'always_open';
+
+    const now = new Date();
+    const local = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Jakarta' }));
+    const currentMins = local.getHours() * 60 + local.getMinutes();
+
+    if (startMins !== null && endMins !== null) {
+      if (startMins <= endMins) {
+        if (currentMins < startMins) return 'not_yet';
+        if (currentMins > endMins) return 'closed';
+        return 'open';
+      } else {
+        // cross-midnight
+        return (currentMins >= startMins || currentMins <= endMins) ? 'open' : 'closed';
+      }
+    }
+    if (startMins !== null) return currentMins < startMins ? 'not_yet' : 'open';
+    if (endMins !== null) return currentMins > endMins ? 'closed' : 'open';
+    return 'always_open';
+  };
+
+  const timeWindowStatus = getTimeWindowStatus();
   
   const loadRecentScans = useCallback(async () => {
     try {
@@ -180,16 +234,7 @@ export default function Scanner() {
     // Prevent processing if already processing
     if (scanStatus !== 'idle') return;
     
-    // Validate time - helper to safely parse "HH:MM" to total minutes
-    const parseTimeToMinutes = (timeStr) => {
-      if (!timeStr || typeof timeStr !== 'string' || !timeStr.trim()) return null;
-      const parts = timeStr.trim().split(':');
-      if (parts.length < 2) return null;
-      const h = parseInt(parts[0], 10);
-      const m = parseInt(parts[1], 10);
-      if (isNaN(h) || isNaN(m)) return null;
-      return h * 60 + m;
-    };
+    // Validate time using component-level parseTimeToMinutes helper
 
     const startMinutes = parseTimeToMinutes(activeEvent.checkInStart);
     const endMinutes = parseTimeToMinutes(activeEvent.checkInEnd);
@@ -405,6 +450,38 @@ export default function Scanner() {
                 >
                   <Camera className="w-4 h-4 mr-2" /> Kamera HP
                 </Button>
+              </div>
+
+              {/* Time Window Indicator */}
+              <div className="w-full border-t border-slate-100 dark:border-slate-700 pt-3 mt-1 flex flex-wrap items-center justify-between gap-2">
+                {/* Live Clock */}
+                <div className="flex items-center gap-2 text-sm font-mono font-bold text-slate-700 dark:text-slate-200">
+                  <Clock className="w-4 h-4 text-slate-400" />
+                  <span>{liveTime} <span className="text-[10px] font-sans font-normal text-slate-400">WIB</span></span>
+                </div>
+
+                {/* Window Status Badge */}
+                {timeWindowStatus === 'always_open' ? (
+                  <span className="flex items-center gap-1.5 text-xs font-bold px-3 py-1 rounded-full bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse inline-block"></span>
+                    Absensi Terbuka (Tanpa Batas Jam)
+                  </span>
+                ) : timeWindowStatus === 'open' ? (
+                  <span className="flex items-center gap-1.5 text-xs font-bold px-3 py-1 rounded-full bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse inline-block"></span>
+                    Absensi BUKA · {activeEvent.checkInStart || '--:--'} – {activeEvent.checkInEnd || '--:--'} WIB
+                  </span>
+                ) : timeWindowStatus === 'not_yet' ? (
+                  <span className="flex items-center gap-1.5 text-xs font-bold px-3 py-1 rounded-full bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500 inline-block"></span>
+                    Belum Buka · Dibuka jam {activeEvent.checkInStart} WIB
+                  </span>
+                ) : timeWindowStatus === 'closed' ? (
+                  <span className="flex items-center gap-1.5 text-xs font-bold px-3 py-1 rounded-full bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-800">
+                    <span className="w-1.5 h-1.5 rounded-full bg-red-500 inline-block"></span>
+                    Absensi TUTUP · Sejak {activeEvent.checkInEnd} WIB
+                  </span>
+                ) : null}
               </div>
             </div>
 

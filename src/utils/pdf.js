@@ -1,5 +1,5 @@
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 
 export const exportToPDF = (participants, eventName, stats) => {
   const doc = new jsPDF();
@@ -35,7 +35,7 @@ export const exportToPDF = (participants, eventName, stats) => {
   ]);
 
   // Render Table
-  doc.autoTable({
+  autoTable(doc, {
     startY: 75,
     head: [['No', 'Nama', 'MPW - MPC/MPCI', 'Jabatan', 'Status', 'Jam']],
     body: tableData,

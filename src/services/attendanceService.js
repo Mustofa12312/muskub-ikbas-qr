@@ -373,7 +373,7 @@ export const attendanceService = {
       return { total, present, absent: total - present, percentage: total === 0 ? 0 : Math.round((present / total) * 100) };
     }
 
-    const pQ = query(collection(db, PARTICIPANTS_COLLECTION), where('eventId', '==', eventId));
+    const pQ = query(collection(db, PARTICIPANTS_COLLECTION));
     const pSnapshot = await getDocs(pQ);
     const total = pSnapshot.size;
     
@@ -418,7 +418,7 @@ export const attendanceService = {
     let isUnsubscribed = false;
 
     // First fetch all participants to have a local map for joining data
-    const pQ = query(collection(db, PARTICIPANTS_COLLECTION), where('eventId', '==', eventId));
+    const pQ = query(collection(db, PARTICIPANTS_COLLECTION));
     getDocs(pQ).then(pSnapshot => {
       if (isUnsubscribed) return;
 

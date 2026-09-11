@@ -38,7 +38,7 @@ export default function Attendance() {
   const loadParticipants = useCallback(async () => {
     setLoading(true);
     try {
-      const pData = await participantService.getParticipantsByEvent(activeEvent.id);
+      const pData = await participantService.getAllParticipants();
       setParticipants(pData);
       
       // We also need to get the attendance for the current session

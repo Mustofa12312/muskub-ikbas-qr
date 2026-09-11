@@ -183,7 +183,7 @@ export default function Scanner() {
     // Validate time
     if (activeEvent.checkInStart || activeEvent.checkInEnd) {
       // Dapatkan waktu saat ini dalam zona waktu WIB (Asia/Jakarta)
-      const options = { timeZone: 'Asia/Jakarta', hour12: false, hour: '2-digit', minute: '2-digit' };
+      const options = { timeZone: 'Asia/Jakarta', hourCycle: 'h23', hour: '2-digit', minute: '2-digit' };
       const currentTime = new Intl.DateTimeFormat('en-GB', options).format(new Date()); // Format: HH:mm
       
       if (activeEvent.checkInStart && currentTime < activeEvent.checkInStart) {
@@ -464,7 +464,7 @@ export default function Scanner() {
 
               {/* SUCCESS STATE */}
               {scanStatus === 'success' && scanResult && (
-                <div className="animate-in slide-in-from-bottom-8 fade-in duration-300 w-full max-w-md">
+                <div className="animate-in slide-in-from-bottom-8 fade-in duration-300 w-full max-w-lg">
                   <div className="mx-auto w-20 h-20 bg-emerald-100 dark:bg-emerald-900/50 text-emerald-600 dark:text-emerald-400 rounded-full flex items-center justify-center mb-6">
                     <CheckCircle size={40} />
                   </div>
@@ -480,7 +480,7 @@ export default function Scanner() {
 
               {/* ALREADY ATTENDED STATE */}
               {scanStatus === 'already_attended' && scanResult && (
-                <div className="animate-in zoom-in-95 fade-in duration-300 w-full max-w-md">
+                <div className="animate-in zoom-in-95 fade-in duration-300 w-full max-w-lg">
                   <div className="mx-auto w-20 h-20 bg-amber-100 dark:bg-amber-900/50 text-amber-600 dark:text-amber-400 rounded-full flex items-center justify-center mb-6">
                     <AlertTriangle size={40} />
                   </div>
@@ -624,19 +624,19 @@ function ScanOverlay() {
 
 function ParticipantCard({ participant }) {
   return (
-    <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-md border border-slate-100 dark:border-slate-700 overflow-hidden w-full relative">
-      <div className="h-28 bg-gradient-to-br from-emerald-500 via-emerald-600 to-teal-700 relative overflow-hidden">
+    <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-lg border border-slate-100 dark:border-slate-700 overflow-hidden w-full relative">
+      <div className="h-32 sm:h-40 bg-gradient-to-br from-emerald-500 via-emerald-600 to-teal-700 relative overflow-hidden">
         <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-[0.05]"></div>
         <div className="absolute -bottom-10 -right-10 w-32 h-32 bg-white/10 rounded-full blur-2xl"></div>
       </div>
-      <div className="px-6 pb-8 pt-0 flex flex-col items-center -mt-14 relative z-10">
-        <div className="relative mb-5 mt-4">
-          <div className="w-36 h-36 sm:w-40 sm:h-40 rounded-2xl border-4 border-white dark:border-slate-800 bg-slate-50 dark:bg-slate-700 overflow-hidden shadow-2xl">
+      <div className="px-6 pb-8 pt-0 flex flex-col items-center -mt-20 sm:-mt-24 relative z-10">
+        <div className="relative mb-6 mt-4">
+          <div className="w-48 h-48 sm:w-64 sm:h-64 rounded-[2rem] border-4 sm:border-8 border-white dark:border-slate-800 bg-slate-50 dark:bg-slate-700 overflow-hidden shadow-2xl">
             {participant.photoUrl ? (
               <img src={participant.photoUrl} alt={participant.name} className="w-full h-full object-cover" />
             ) : (
               <div className="w-full h-full flex items-center justify-center text-slate-300 dark:text-slate-500">
-                <Users size={64} />
+                <Users size={80} />
               </div>
             )}
           </div>

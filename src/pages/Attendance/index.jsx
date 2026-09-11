@@ -62,7 +62,8 @@ export default function Attendance() {
       setAttendanceMap(aMap);
       
     } catch (error) {
-      toast.error('Gagal memuat daftar kehadiran');
+      console.error("Gagal memuat daftar kehadiran:", error);
+      toast.error('Gagal memuat daftar kehadiran: ' + error.message);
     } finally {
       setLoading(false);
     }

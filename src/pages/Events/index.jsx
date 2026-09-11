@@ -69,6 +69,14 @@ export default function Events() {
         dataToSubmit.sessions = [];
       }
 
+      // Strip empty time strings so they don't trigger false validation
+      if (!dataToSubmit.checkInStart || !dataToSubmit.checkInStart.trim()) {
+        dataToSubmit.checkInStart = null;
+      }
+      if (!dataToSubmit.checkInEnd || !dataToSubmit.checkInEnd.trim()) {
+        dataToSubmit.checkInEnd = null;
+      }
+
       if (editingId) {
         await eventService.updateEvent(editingId, dataToSubmit);
         toast.success('Acara berhasil diperbarui');

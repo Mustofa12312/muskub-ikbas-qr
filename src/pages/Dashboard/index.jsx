@@ -46,27 +46,47 @@ export default function Dashboard() {
           const groupedByHour = {};
           allPresent.forEach(p => {
             if(p.attendanceTime) {
-              const hour = p.attendanceTime.split(':')[0] + ':00';
+              const hour = parseInt(p.attendanceTime.split(':')[0]);
               groupedByHour[hour] = (groupedByHour[hour] || 0) + 1;
             }
           });
           
-          const chartFormatted = Object.keys(groupedByHour).sort().map(hour => ({
-            time: hour,
-            peserta: groupedByHour[hour]
-          }));
+          let chartFormatted = [];
+          const hours = Object.keys(groupedByHour).map(Number).sort((a,b) => a-b);
+          
+          if (hours.length > 0) {
+            const minH = Math.max(0, hours[0] - 1);
+            const maxH = Math.min(23, hours[hours.length - 1] + 1);
+            
+            for (let i = minH; i <= maxH; i++) {
+              chartFormatted.push({
+                time: String(i).padStart(2, '0') + ':00',
+                peserta: groupedByHour[i] || 0
+              });
+            }
+          } else {
+            // Default empty state
+            const currentH = new Date().getHours();
+            chartFormatted = [
+              { time: String(Math.max(0, currentH-1)).padStart(2, '0') + ':00', peserta: 0 },
+              { time: String(currentH).padStart(2, '0') + ':00', peserta: 0 },
+              { time: String(Math.min(23, currentH+1)).padStart(2, '0') + ':00', peserta: 0 }
+            ];
+          }
           setChartData(chartFormatted);
           
           // Process MPW stats
           const mpwMap = {};
           
           if (allParticipants) {
+            const presentIds = new Set(allPresent.map(p => p.id));
+            
             allParticipants.forEach(p => {
-            const delName = p.mpw || 'Tanpa MPW';
-            if (!mpwMap[delName]) mpwMap[delName] = { total: 0, present: 0 };
-            mpwMap[delName].total++;
-            if (p.status === 'HADIR') mpwMap[delName].present++;
-          });
+              const delName = p.mpw || 'Tanpa MPW';
+              if (!mpwMap[delName]) mpwMap[delName] = { total: 0, present: 0 };
+              mpwMap[delName].total++;
+              if (presentIds.has(p.id)) mpwMap[delName].present++;
+            });
           
           const delArray = Object.keys(mpwMap).map(key => ({
             name: key,

@@ -182,8 +182,9 @@ export default function Scanner() {
     
     // Validate time
     if (activeEvent.checkInStart || activeEvent.checkInEnd) {
-      const now = new Date();
-      const currentTime = now.toTimeString().split(' ')[0].substring(0, 5); // HH:MM
+      // Dapatkan waktu saat ini dalam zona waktu WIB (Asia/Jakarta)
+      const options = { timeZone: 'Asia/Jakarta', hour12: false, hour: '2-digit', minute: '2-digit' };
+      const currentTime = new Intl.DateTimeFormat('en-GB', options).format(new Date()); // Format: HH:mm
       
       if (activeEvent.checkInStart && currentTime < activeEvent.checkInStart) {
         setScanStatus('error');

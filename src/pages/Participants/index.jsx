@@ -140,8 +140,9 @@ export default function Participants() {
       ctx.fillRect(0, 0, canvas.width, canvas.height);
       ctx.drawImage(img, 0, 0);
       const pngFile = canvas.toDataURL("image/png");
-      const downloadLink = document.createElement("a");
-      downloadLink.download = `${participant.qrCode}-${participant.name}.png`;
+      const safeName = participant.name.replace(/[^a-zA-Z0-9 ]/g, '').trim().replace(/ +/g, '_');
+      const safeId = participant.qrCode.replace(/[^a-zA-Z0-9_-]/g, '');
+      downloadLink.download = `${safeId}_qr_${safeName}.png`;
       downloadLink.href = `${pngFile}`;
       downloadLink.click();
     };
@@ -272,7 +273,8 @@ export default function Participants() {
         
         // Add to ZIP
         const safeName = p.name.replace(/[^a-zA-Z0-9 ]/g, '').trim().replace(/ +/g, '_');
-        zip.file(`qr_${safeName}.png`, base64Data, { base64: true });
+        const safeId = p.qrCode.replace(/[^a-zA-Z0-9_-]/g, '');
+        zip.file(`${safeId}_qr_${safeName}.png`, base64Data, { base64: true });
         hasData = true;
       }
       

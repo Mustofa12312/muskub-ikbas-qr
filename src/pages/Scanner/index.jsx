@@ -180,26 +180,64 @@ export default function Scanner() {
     // Prevent processing if already processing
     if (scanStatus !== 'idle') return;
     
-    // Validate time
-    if (activeEvent.checkInStart || activeEvent.checkInEnd) {
-      // Dapatkan waktu saat ini dalam zona waktu WIB (Asia/Jakarta)
-      const options = { timeZone: 'Asia/Jakarta', hourCycle: 'h23', hour: '2-digit', minute: '2-digit' };
-      const currentTime = new Intl.DateTimeFormat('en-GB', options).format(new Date()); // Format: HH:mm
-      
-      if (activeEvent.checkInStart && currentTime < activeEvent.checkInStart) {
+    // Validate time - helper to safely parse "HH:MM" to total minutes
+    const parseTimeToMinutes = (timeStr) => {
+      if (!timeStr || typeof timeStr !== 'string' || !timeStr.trim()) return null;
+      const parts = timeStr.trim().split(':');
+      if (parts.length < 2) return null;
+      const h = parseInt(parts[0], 10);
+      const m = parseInt(parts[1], 10);
+      if (isNaN(h) || isNaN(m)) return null;
+      return h * 60 + m;
+    };
+
+    const startMinutes = parseTimeToMinutes(activeEvent.checkInStart);
+    const endMinutes = parseTimeToMinutes(activeEvent.checkInEnd);
+
+    // Only validate if at least one time boundary is set
+    if (startMinutes !== null || endMinutes !== null) {
+      // Get current time in WIB (Asia/Jakarta) as total minutes
+      const now = new Date();
+      const jakartaLocal = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Jakarta' }));
+      const currentMinutes = jakartaLocal.getHours() * 60 + jakartaLocal.getMinutes();
+
+      if (startMinutes !== null && endMinutes !== null) {
+        // Normal window (e.g., 08:00 - 17:00)
+        if (startMinutes <= endMinutes) {
+          if (currentMinutes < startMinutes) {
+            setScanStatus('error');
+            setScanResult({ message: `Absensi belum dibuka. Dibuka jam ${activeEvent.checkInStart} WIB` });
+            playSound('error');
+            return;
+          }
+          if (currentMinutes > endMinutes) {
+            setScanStatus('error');
+            setScanResult({ message: `Absensi sudah ditutup sejak jam ${activeEvent.checkInEnd} WIB` });
+            playSound('error');
+            return;
+          }
+        } else {
+          // Cross-midnight window (e.g., 20:00 - 02:00)
+          if (currentMinutes < startMinutes && currentMinutes > endMinutes) {
+            setScanStatus('error');
+            setScanResult({ message: `Absensi diluar jam operasional (${activeEvent.checkInStart} - ${activeEvent.checkInEnd} WIB)` });
+            playSound('error');
+            return;
+          }
+        }
+      } else if (startMinutes !== null && currentMinutes < startMinutes) {
         setScanStatus('error');
         setScanResult({ message: `Absensi belum dibuka. Dibuka jam ${activeEvent.checkInStart} WIB` });
         playSound('error');
         return;
-      }
-      
-      if (activeEvent.checkInEnd && currentTime > activeEvent.checkInEnd) {
+      } else if (endMinutes !== null && currentMinutes > endMinutes) {
         setScanStatus('error');
         setScanResult({ message: `Absensi sudah ditutup sejak jam ${activeEvent.checkInEnd} WIB` });
         playSound('error');
         return;
       }
     }
+
     
     try {
       const result = await attendanceService.processAttendance(qrCode, activeEvent.id, scanAction, activeSession, scannerId);

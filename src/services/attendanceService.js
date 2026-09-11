@@ -106,12 +106,25 @@ export const attendanceService = {
       const eventData = eventDoc.data();
       if (action === 'in') {
         const _now = new Date();
-        const currentTime = _now.toTimeString().split(' ')[0].substring(0, 5); // HH:MM
-        if (eventData.checkInStart && currentTime < eventData.checkInStart) {
-          return { success: false, status: 'ERROR', message: `Absensi baru dibuka pukul ${eventData.checkInStart}` };
+        // Convert to Asia/Jakarta local time object
+        const jakartaTime = new Date(_now.toLocaleString('en-US', { timeZone: 'Asia/Jakarta' }));
+        const currentMinutes = jakartaTime.getHours() * 60 + jakartaTime.getMinutes();
+
+        const parseTimeToMinutes = (timeStr) => {
+          if (!timeStr || typeof timeStr !== 'string' || !timeStr.includes(':')) return null;
+          const [h, m] = timeStr.split(':').map(Number);
+          if (isNaN(h) || isNaN(m)) return null;
+          return h * 60 + m;
+        };
+
+        const startMinutes = parseTimeToMinutes(eventData.checkInStart);
+        const endMinutes = parseTimeToMinutes(eventData.checkInEnd);
+
+        if (startMinutes !== null && currentMinutes < startMinutes) {
+          return { success: false, status: 'ERROR', message: `Absensi baru dibuka pukul ${eventData.checkInStart} WIB` };
         }
-        if (eventData.checkInEnd && currentTime > eventData.checkInEnd) {
-          return { success: false, status: 'ERROR', message: `Absensi telah ditutup sejak pukul ${eventData.checkInEnd}` };
+        if (endMinutes !== null && currentMinutes > endMinutes) {
+          return { success: false, status: 'ERROR', message: `Absensi telah ditutup sejak pukul ${eventData.checkInEnd} WIB` };
         }
       }
 

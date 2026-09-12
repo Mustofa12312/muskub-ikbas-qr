@@ -338,6 +338,29 @@ export default function Participants() {
     }
   };
 
+  const handleDownloadSinglePhoto = async (participant) => {
+    if (!participant.photoUrl) return;
+    try {
+      toast.info('Mengunduh foto...', { id: 'single-foto-toast' });
+      const response = await fetch(participant.photoUrl);
+      const blob = await response.blob();
+      
+      const safeName = participant.name.replace(/[^a-zA-Z0-9 ]/g, '').trim().replace(/ +/g, '_');
+      const safeId = participant.qrCode ? participant.qrCode.replace(/[^a-zA-Z0-9_-]/g, '') : `ID_${participant.id}`;
+      
+      let extension = 'jpg';
+      if (blob.type === 'image/png') extension = 'png';
+      else if (blob.type === 'image/jpeg') extension = 'jpg';
+      else if (blob.type === 'image/webp') extension = 'webp';
+      
+      saveAs(blob, `${safeId}_foto_${safeName}.${extension}`);
+      toast.success('Foto berhasil diunduh', { id: 'single-foto-toast' });
+    } catch (error) {
+      console.error(error);
+      toast.error('Gagal mengunduh foto', { id: 'single-foto-toast' });
+    }
+  };
+
   const handleExportExcel = () => {
     const exportData = filteredParticipants.map(p => ({
       'ID Peserta': p.id,
@@ -798,6 +821,16 @@ export default function Participants() {
                   </div>
                 )}
               </div>
+              {selectedParticipantPhoto.photoUrl && (
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="flex items-center gap-2"
+                  onClick={() => handleDownloadSinglePhoto(selectedParticipantPhoto)}
+                >
+                  <Download className="h-4 w-4" /> Download Foto
+                </Button>
+              )}
               <div className="text-center w-full bg-slate-50 p-4 rounded-xl border border-slate-100">
                 <h3 className="font-bold text-xl text-slate-900 mb-1">{selectedParticipantPhoto.name}</h3>
                 <p className="text-slate-600 font-medium">{selectedParticipantPhoto.position}</p>

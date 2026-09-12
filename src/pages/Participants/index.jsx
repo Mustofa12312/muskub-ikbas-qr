@@ -337,7 +337,7 @@ export default function Participants() {
     }
   };
 
-  // Filter participants
+  // Filter and sort participants
   const filteredParticipants = participants.filter(p => {
     const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase()) || 
                           (p.mpw && p.mpw.toLowerCase().includes(search.toLowerCase())) ||
@@ -351,6 +351,10 @@ export default function Participants() {
     if (filterPhoto === 'no_photo') matchesPhoto = !p.photoUrl;
     
     return matchesSearch && matchesMpw && matchesPosition && matchesPhoto;
+  }).sort((a, b) => {
+    const idA = a.qrCode || '';
+    const idB = b.qrCode || '';
+    return idA.localeCompare(idB, undefined, { numeric: true, sensitivity: 'base' });
   });
 
   const uniqueMpw = [...new Set(participants.map(p => p.mpw))].filter(Boolean).sort();

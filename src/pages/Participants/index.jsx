@@ -293,6 +293,51 @@ export default function Participants() {
     }
   };
 
+  const handleDownloadAllPhotos = async () => {
+    try {
+      toast.info('Sedang menyiapkan file ZIP Foto...', { id: 'zip-toast' });
+      
+      const zip = new JSZip();
+      let hasData = false;
+      
+      for (const p of filteredParticipants) {
+        if (!p.photoUrl) continue;
+        
+        try {
+          const response = await fetch(p.photoUrl);
+          const blob = await response.blob();
+          
+          const safeName = p.name.replace(/[^a-zA-Z0-9 ]/g, '').trim().replace(/ +/g, '_');
+          const safeId = p.qrCode ? p.qrCode.replace(/[^a-zA-Z0-9_-]/g, '') : `ID_${p.id}`;
+          
+          let extension = 'jpg';
+          if (blob.type === 'image/png') extension = 'png';
+          else if (blob.type === 'image/jpeg') extension = 'jpg';
+          else if (blob.type === 'image/webp') extension = 'webp';
+          
+          zip.file(`${safeId}_foto_${safeName}.${extension}`, blob);
+          hasData = true;
+        } catch (err) {
+          console.error(`Gagal mengunduh foto untuk ${p.name}:`, err);
+        }
+      }
+      
+      if (!hasData) {
+        toast.error('Tidak ada foto yang dapat diunduh', { id: 'zip-toast' });
+        return;
+      }
+      
+      const content = await zip.generateAsync({ type: 'blob' });
+      const eventName = activeEvent?.name ? activeEvent.name.replace(/[^a-zA-Z0-9]/g, '_') : 'Event';
+      saveAs(content, `Foto_Peserta_${eventName}.zip`);
+      
+      toast.success('Berhasil mengunduh kumpulan Foto', { id: 'zip-toast' });
+    } catch (error) {
+      console.error(error);
+      toast.error('Gagal mengunduh Foto', { id: 'zip-toast' });
+    }
+  };
+
   const handleExportExcel = () => {
     const exportData = filteredParticipants.map(p => ({
       'ID Peserta': p.id,
@@ -415,6 +460,10 @@ export default function Participants() {
               <DropdownMenuItem onClick={handleDownloadAllQRsOnly}>
                 <Download className="mr-2 h-4 w-4 text-purple-500" />
                 Download Semua QR (ZIP)
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleDownloadAllPhotos}>
+                <Download className="mr-2 h-4 w-4 text-orange-500" />
+                Download Semua Foto (ZIP)
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={handleExportExcel}>

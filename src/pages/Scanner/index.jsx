@@ -297,9 +297,14 @@ export default function Scanner() {
           setScanStatus('already_attended');
           setScanResult(result.participant);
           playSound('warning');
-        } else {
+        } else if (result.status === 'NOT_FOUND') {
           setScanStatus('not_found');
           setScanResult({ message: result.message, qrCode });
+          playSound('error');
+        } else {
+          // ERROR status (e.g., time validation from server)
+          setScanStatus('error');
+          setScanResult({ message: result.message });
           playSound('error');
         }
       }

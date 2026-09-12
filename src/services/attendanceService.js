@@ -120,10 +120,24 @@ export const attendanceService = {
         const startMinutes = parseTimeToMinutes(eventData.checkInStart);
         const endMinutes = parseTimeToMinutes(eventData.checkInEnd);
 
-        if (startMinutes !== null && currentMinutes < startMinutes) {
+        if (startMinutes !== null && endMinutes !== null) {
+          if (startMinutes <= endMinutes) {
+            // Normal window (e.g., 08:00 - 17:00)
+            if (currentMinutes < startMinutes) {
+              return { success: false, status: 'ERROR', message: `Absensi baru dibuka pukul ${eventData.checkInStart} WIB` };
+            }
+            if (currentMinutes > endMinutes) {
+              return { success: false, status: 'ERROR', message: `Absensi telah ditutup sejak pukul ${eventData.checkInEnd} WIB` };
+            }
+          } else {
+            // Cross-midnight window (e.g., 20:00 - 02:00)
+            if (currentMinutes < startMinutes && currentMinutes > endMinutes) {
+              return { success: false, status: 'ERROR', message: `Absensi diluar jam operasional (${eventData.checkInStart} - ${eventData.checkInEnd} WIB)` };
+            }
+          }
+        } else if (startMinutes !== null && currentMinutes < startMinutes) {
           return { success: false, status: 'ERROR', message: `Absensi baru dibuka pukul ${eventData.checkInStart} WIB` };
-        }
-        if (endMinutes !== null && currentMinutes > endMinutes) {
+        } else if (endMinutes !== null && currentMinutes > endMinutes) {
           return { success: false, status: 'ERROR', message: `Absensi telah ditutup sejak pukul ${eventData.checkInEnd} WIB` };
         }
       }

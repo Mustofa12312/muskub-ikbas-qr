@@ -24,7 +24,7 @@ export default function Scanner() {
   
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [scannerId, setScannerId] = useState(localStorage.getItem('scannerId') || '');
-  const [showScannerConfig, setShowScannerConfig] = useState(!localStorage.getItem('scannerId'));
+  const [showScannerConfig, setShowScannerConfig] = useState(false);
   const [tempScannerId, setTempScannerId] = useState(scannerId);
   
   // New States for UI/UX improvements
@@ -656,7 +656,7 @@ export default function Scanner() {
                       <div className="relative shrink-0">
                         <div className="w-12 h-12 rounded-full bg-slate-700 overflow-hidden border-2 border-slate-600 shadow-inner">
                           {scan.photoUrl ? (
-                            <img src={scan.photoUrl} alt={scan.name} className="w-full h-full object-cover" />
+                            <img src={scan.photoUrl} alt={scan.name} className="w-full h-full object-cover object-top" />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center text-slate-400">
                               <Users size={20} />
@@ -753,7 +753,7 @@ function ParticipantCard({ participant }) {
         <div className="relative mb-6 mt-4">
           <div className="w-48 h-48 sm:w-64 sm:h-64 rounded-[2rem] border-4 sm:border-8 border-white dark:border-slate-800 bg-slate-50 dark:bg-slate-700 overflow-hidden shadow-2xl">
             {participant.photoUrl ? (
-              <img src={participant.photoUrl} alt={participant.name} className="w-full h-full object-cover" />
+              <img src={participant.photoUrl} alt={participant.name} className="w-full h-full object-cover object-top" />
             ) : (
               <div className="w-full h-full flex items-center justify-center text-slate-300 dark:text-slate-500">
                 <Users size={80} />

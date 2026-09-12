@@ -707,7 +707,7 @@ export default function Participants() {
                             title="Lihat Profil"
                           >
                             {participant.photoUrl ? (
-                              <img src={participant.photoUrl} alt="" className="w-full h-full object-cover" />
+                              <img src={participant.photoUrl} alt="" className="w-full h-full object-cover object-top" />
                             ) : (
                               <div className="w-full h-full flex items-center justify-center text-slate-400">
                                 <Users size={16} />
@@ -814,7 +814,7 @@ export default function Participants() {
             <div className="flex flex-col items-center gap-4 py-4">
               <div className="w-40 h-40 rounded-2xl bg-slate-100 overflow-hidden border shadow-lg">
                 {selectedParticipantPhoto.photoUrl ? (
-                  <img src={selectedParticipantPhoto.photoUrl} alt={selectedParticipantPhoto.name} className="w-full h-full object-cover" />
+                  <img src={selectedParticipantPhoto.photoUrl} alt={selectedParticipantPhoto.name} className="w-full h-full object-cover object-top" />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center text-slate-300">
                     <Users size={64} />

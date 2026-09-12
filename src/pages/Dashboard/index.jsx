@@ -219,7 +219,7 @@ export default function Dashboard() {
                     <div className="flex items-center space-x-4">
                       <div className="h-10 w-10 rounded-full bg-slate-100 overflow-hidden shrink-0 border border-slate-200">
                         {scan.photoUrl ? (
-                          <img src={scan.photoUrl} alt={scan.name} className="h-full w-full object-cover" />
+                          <img src={scan.photoUrl} alt={scan.name} className="h-full w-full object-cover object-top" />
                         ) : (
                           <div className="h-full w-full flex items-center justify-center text-slate-400">
                             <Users size={20} />

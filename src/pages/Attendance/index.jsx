@@ -289,7 +289,7 @@ export default function Attendance() {
                         <div className="flex items-center gap-3">
                           <div className="w-10 h-10 rounded-full bg-slate-100 overflow-hidden shrink-0 border">
                             {participant.photoUrl ? (
-                              <img src={participant.photoUrl} alt="" className="w-full h-full object-cover" />
+                              <img src={participant.photoUrl} alt="" className="w-full h-full object-cover object-top" />
                             ) : (
                               <div className="w-full h-full flex items-center justify-center text-slate-400">
                                 <Users size={16} />

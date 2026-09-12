@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { Download, Upload, Settings as SettingsIcon, Volume2, Vibrate, CheckCircle2 } from 'lucide-react';
+import { Download, Upload, Settings as SettingsIcon, Volume2, Vibrate, CheckCircle2, Image as ImageIcon, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useState, useRef, useEffect } from 'react';
 
@@ -16,13 +16,17 @@ export default function BackupSettings() {
   // Settings State
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [vibrateEnabled, setVibrateEnabled] = useState(true);
+  const [defaultPhoto, setDefaultPhoto] = useState('');
+  const defaultPhotoInputRef = useRef(null);
 
   // Load settings on mount
   useEffect(() => {
     const savedSound = localStorage.getItem('muskub_sound_enabled');
     const savedVibrate = localStorage.getItem('muskub_vibrate_enabled');
+    const savedDefaultPhoto = localStorage.getItem('muskub_default_photo');
     if (savedSound !== null) setSoundEnabled(savedSound === 'true');
     if (savedVibrate !== null) setVibrateEnabled(savedVibrate === 'true');
+    if (savedDefaultPhoto) setDefaultPhoto(savedDefaultPhoto);
   }, []);
 
   const handleSoundToggle = (checked) => {
@@ -35,6 +39,65 @@ export default function BackupSettings() {
     setVibrateEnabled(checked);
     localStorage.setItem('muskub_vibrate_enabled', checked);
     if (checked) toast.success('Getar scanner diaktifkan');
+  };
+
+  const handleDefaultPhotoChange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    if (!file.type.startsWith('image/')) {
+      toast.error("File harus berupa gambar");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const MAX_WIDTH = 400;
+        const MAX_HEIGHT = 400;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > MAX_WIDTH) {
+            height *= MAX_WIDTH / width;
+            width = MAX_WIDTH;
+          }
+        } else {
+          if (height > MAX_HEIGHT) {
+            width *= MAX_HEIGHT / height;
+            height = MAX_HEIGHT;
+          }
+        }
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+        
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+        setDefaultPhoto(dataUrl);
+        try {
+          localStorage.setItem('muskub_default_photo', dataUrl);
+          toast.success("Foto default berhasil disimpan");
+        } catch (err) {
+          toast.error("Gagal menyimpan foto (kuota penyimpanan penuh)");
+        }
+      };
+      img.src = event.target.result;
+    };
+    reader.readAsDataURL(file);
+    
+    if (defaultPhotoInputRef.current) {
+      defaultPhotoInputRef.current.value = "";
+    }
+  };
+
+  const handleRemoveDefaultPhoto = () => {
+    setDefaultPhoto('');
+    localStorage.removeItem('muskub_default_photo');
+    toast.success("Foto default dihapus");
   };
 
   const handleExport = async () => {
@@ -176,6 +239,40 @@ export default function BackupSettings() {
                   onCheckedChange={handleVibrateToggle}
                   className="data-[state=checked]:bg-emerald-600"
                 />
+              </div>
+              <div className="border-t border-slate-100 pt-6">
+                <div className="space-y-4">
+                  <div>
+                    <Label className="flex items-center gap-2 text-base"><ImageIcon className="w-4 h-4 text-emerald-600"/> Foto Default Peserta</Label>
+                    <p className="text-sm text-slate-500 mt-1">Foto ini akan ditampilkan jika peserta tidak memiliki foto profil.</p>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <div className="w-16 h-16 rounded-lg bg-slate-100 border-2 border-dashed border-slate-300 flex items-center justify-center overflow-hidden shrink-0">
+                      {defaultPhoto ? (
+                        <img src={defaultPhoto} alt="Default" className="w-full h-full object-cover object-top" />
+                      ) : (
+                        <ImageIcon className="w-6 h-6 text-slate-400" />
+                      )}
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <input 
+                        type="file" 
+                        accept="image/*" 
+                        className="hidden" 
+                        ref={defaultPhotoInputRef}
+                        onChange={handleDefaultPhotoChange}
+                      />
+                      <Button variant="outline" size="sm" onClick={() => defaultPhotoInputRef.current?.click()}>
+                        {defaultPhoto ? 'Ubah Foto' : 'Unggah Foto'}
+                      </Button>
+                      {defaultPhoto && (
+                        <Button variant="ghost" size="sm" onClick={handleRemoveDefaultPhoto} className="text-red-500 hover:text-red-600 hover:bg-red-50 h-8">
+                          <Trash2 className="w-4 h-4 mr-2" /> Hapus Foto
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                </div>
               </div>
             </CardContent>
           </Card>

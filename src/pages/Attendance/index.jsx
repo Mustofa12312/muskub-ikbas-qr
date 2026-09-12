@@ -288,8 +288,8 @@ export default function Attendance() {
                       <TableCell>
                         <div className="flex items-center gap-3">
                           <div className="w-10 h-10 rounded-full bg-slate-100 overflow-hidden shrink-0 border">
-                            {participant.photoUrl ? (
-                              <img src={participant.photoUrl} alt="" className="w-full h-full object-cover object-top" />
+                            {participant.photoUrl || localStorage.getItem('muskub_default_photo') ? (
+                              <img src={participant.photoUrl || localStorage.getItem('muskub_default_photo')} alt="" className="w-full h-full object-cover object-top" />
                             ) : (
                               <div className="w-full h-full flex items-center justify-center text-slate-400">
                                 <Users size={16} />

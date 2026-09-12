@@ -218,8 +218,8 @@ export default function Dashboard() {
                   <div key={scan.id} className="flex items-center justify-between border-b pb-4 last:border-0 last:pb-0">
                     <div className="flex items-center space-x-4">
                       <div className="h-10 w-10 rounded-full bg-slate-100 overflow-hidden shrink-0 border border-slate-200">
-                        {scan.photoUrl ? (
-                          <img src={scan.photoUrl} alt={scan.name} className="h-full w-full object-cover object-top" />
+                        {scan.photoUrl || localStorage.getItem('muskub_default_photo') ? (
+                          <img src={scan.photoUrl || localStorage.getItem('muskub_default_photo')} alt={scan.name} className="h-full w-full object-cover object-top" />
                         ) : (
                           <div className="h-full w-full flex items-center justify-center text-slate-400">
                             <Users size={20} />

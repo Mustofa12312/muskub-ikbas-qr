@@ -655,8 +655,8 @@ export default function Scanner() {
                     <div key={scan.id} className="flex items-center gap-3 bg-slate-800/80 p-3 rounded-xl border border-slate-700/50 shadow-sm animate-in slide-in-from-right-4 fade-in hover:bg-slate-700/80 transition-colors">
                       <div className="relative shrink-0">
                         <div className="w-12 h-12 rounded-full bg-slate-700 overflow-hidden border-2 border-slate-600 shadow-inner">
-                          {scan.photoUrl ? (
-                            <img src={scan.photoUrl} alt={scan.name} className="w-full h-full object-cover object-top" />
+                          {scan.photoUrl || localStorage.getItem('muskub_default_photo') ? (
+                            <img src={scan.photoUrl || localStorage.getItem('muskub_default_photo')} alt={scan.name} className="w-full h-full object-cover object-top" />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center text-slate-400">
                               <Users size={20} />
@@ -752,8 +752,8 @@ function ParticipantCard({ participant }) {
       <div className="px-6 pb-8 pt-0 flex flex-col items-center -mt-20 sm:-mt-24 relative z-10">
         <div className="relative mb-6 mt-4">
           <div className="w-48 h-48 sm:w-64 sm:h-64 rounded-[2rem] border-4 sm:border-8 border-white dark:border-slate-800 bg-slate-50 dark:bg-slate-700 overflow-hidden shadow-2xl">
-            {participant.photoUrl ? (
-              <img src={participant.photoUrl} alt={participant.name} className="w-full h-full object-cover object-top" />
+            {participant.photoUrl || localStorage.getItem('muskub_default_photo') ? (
+              <img src={participant.photoUrl || localStorage.getItem('muskub_default_photo')} alt={participant.name} className="w-full h-full object-cover object-top" />
             ) : (
               <div className="w-full h-full flex items-center justify-center text-slate-300 dark:text-slate-500">
                 <Users size={80} />
